@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:onecontratos/pages/Home/home.dart';
+import 'package:onecontratos/pages/Utils/routes.dart';
 
 void main() {
   runApp(const MyApp());
@@ -17,7 +17,8 @@ class MyApp extends StatelessWidget {
       ),
       debugShowCheckedModeBanner: false,
       locale: const Locale('pt', 'BR'),
-      home: const PageHome(),
+      initialRoute: AppRoutes.home,
+      onGenerateRoute: AppRoutes.generateRoute,
     );
   }
 }

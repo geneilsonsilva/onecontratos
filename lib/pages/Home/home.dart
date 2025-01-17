@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onecontratos/pages/Utils/colors.dart';
 import 'package:onecontratos/pages/Utils/responsive.dart';
+import 'package:onecontratos/pages/Utils/routes.dart';
+import 'package:onecontratos/pages/widgets/emitir_contratos.dart';
 
 class PageHome extends StatefulWidget {
   const PageHome({super.key});
@@ -19,9 +21,13 @@ class _PageHomeState extends State<PageHome> {
     setState(() {
       _selectedIndex = index;
     });
-    _navigatorKey.currentState?.push(
-      MaterialPageRoute(builder: (context) => _getSelectPage(index)),
-    );
+
+    // Navegação usando as rotas criadas
+    if (index == 0) {
+      Navigator.pushReplacementNamed(context, AppRoutes.home);
+    } else if (index == 1) {
+      Navigator.pushReplacementNamed(context, AppRoutes.emitirContratos);
+    }
   }
 
   Widget _getSelectPage(int? selectedIndex) {
@@ -119,114 +125,14 @@ class _PageHomeState extends State<PageHome> {
                                   Expanded(
                                     child: ListView(
                                       children: [
-                                        buildListTile(
-                                          icon: Icons.dashboard,
-                                          title: "Contratos",
-                                          index: 0,
+                                        buildMenuTile(
+                                          icon: Icons.description,
+                                          title: "Emitir Contratos",
+                                          index: 1,
                                           onTap: () {
-                                            _onItemTapped(0);
+                                            _onItemTapped(1);
                                           },
                                         ),
-                                        // buildListTile(
-                                        //   icon: Icons.inventory,
-                                        //   title: "Estoque",
-                                        //   index: 1,
-                                        //   onTap: () {
-                                        //     _onItemTapped(0);
-                                        //   },
-                                        // ),
-                                        // Padding(
-                                        //   padding: const EdgeInsets.symmetric(
-                                        //     horizontal: 5,
-                                        //   ),
-                                        //   child: ListTile(
-                                        //     leading: const Icon(
-                                        //         Icons.monetization_on,
-                                        //         size: 25,
-                                        //         color: AppColors.menu),
-                                        //     title: Text(
-                                        //       'Vendas',
-                                        //       style: GoogleFonts.poppins(
-                                        //         fontSize: 15,
-                                        //         color: AppColors.menu,
-                                        //         fontWeight: FontWeight.w600,
-                                        //       ),
-                                        //     ),
-                                        //     onTap: () {
-                                        //       // Navigator.of(context)
-                                        //       //     .pushAndRemoveUntil(
-                                        //       //   MaterialPageRoute(
-                                        //       //     builder: (context) =>
-                                        //       //         const PDV(),
-                                        //       //   ),
-                                        //       //   (route) => false,
-                                        //       // );
-                                        //     },
-                                        //   ),
-                                        // ),
-                                        // buildListTile(
-                                        //   icon: Icons.monetization_on,
-                                        //   title: "Vendas",
-                                        //   index: 2,
-                                        //   onTap: () {
-                                        //     if (!isExpanded) {
-                                        //       setState(() {
-                                        //         isExpanded = true;
-                                        //       });
-                                        //     }
-                                        //     _onItemTapped(0);
-                                        //   },
-                                        // ),
-
-                                        // Padding(
-                                        //   padding: const EdgeInsets.symmetric(
-                                        //     horizontal: 5,
-                                        //   ),
-                                        //   child: ExpansionTile(
-                                        //     leading: const Icon(Icons.receipt),
-                                        //     iconColor: AppColors.menu,
-                                        //     collapsedIconColor: AppColors.menu,
-                                        //     title: Text(
-                                        //       "Fiscal",
-                                        //       style: GoogleFonts.poppins(
-                                        //         fontSize: 15,
-                                        //         fontWeight: FontWeight.w600,
-                                        //         color: AppColors.menu,
-                                        //       ),
-                                        //     ),
-                                        //     // onExpansionChanged: (expanded) {
-                                        //     //   if (!expanded) {
-                                        //     //     return;
-                                        //     //   } else {
-                                        //     //     setState(() {
-                                        //     //       isExpanded = true;
-                                        //     //     });
-                                        //     //   }
-                                        //     // },
-                                        //     children: <Widget>[
-                                        //       buildSubListTile(
-                                        //         title: "NF-e",
-                                        //         index: 4,
-                                        //         onTap: () {},
-                                        //       ),
-                                        //       buildSubListTile(
-                                        //         title: "NFC-e",
-                                        //         index: 5,
-                                        //         onTap: () {},
-                                        //       ),
-                                        //       buildSubListTile(
-                                        //         title: "Sintegra",
-                                        //         index: 6,
-                                        //         onTap: () {},
-                                        //       ),
-                                        //       buildSubListTile(
-                                        //         title: "SAT",
-                                        //         index: 7,
-                                        //         onTap: () {},
-                                        //       ),
-                                        //     ],
-                                        //   ),
-                                        // ),
                                       ],
                                     ),
                                   ),
@@ -248,11 +154,23 @@ class _PageHomeState extends State<PageHome> {
                         borderRadius: BorderRadius.circular(20),
                         child: Navigator(
                           key: _navigatorKey,
-                          onGenerateRoute: (settings) {
-                            return MaterialPageRoute(
-                              builder: (context) =>
-                                  _getSelectPage(_selectedIndex),
-                            );
+                          initialRoute: '/',
+                          onGenerateRoute: (RouteSettings settings) {
+                            switch (settings.name) {
+                              case '/':
+                                return MaterialPageRoute(
+                                  builder: (context) => _buildHomeScreen(),
+                                );
+                              // Adicione outras rotas conforme necessário
+                              case '/contratos':
+                                return MaterialPageRoute(
+                                  builder: (context) => const EmitirContratos(),
+                                );
+                              default:
+                                return MaterialPageRoute(
+                                  builder: (context) => _buildHomeScreen(),
+                                );
+                            }
                           },
                         ),
                       ),
@@ -265,18 +183,17 @@ class _PageHomeState extends State<PageHome> {
         ));
   }
 
-  Widget buildListTile({
+  Widget buildMenuTile({
     required int index,
-    required IconData icon,
     required String title,
     required VoidCallback onTap,
+    IconData? icon,
+    bool isSubTile = false,
   }) {
     bool isSelected = _selectedIndex == index;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 5,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: isSubTile ? 34 : 5),
       child: Container(
         decoration: BoxDecoration(
           color: isSelected ? AppColors.decoretionMenu : Colors.transparent,
@@ -292,85 +209,18 @@ class _PageHomeState extends State<PageHome> {
               : [],
         ),
         child: ListTile(
-          leading: Icon(icon, size: 25, color: AppColors.menu),
+          leading: icon != null ? Icon(icon, color: AppColors.menu) : null,
           title: isExpanded
               ? Text(
                   title,
                   style: GoogleFonts.poppins(
                     fontSize: 15,
-                    color: isSelected ? AppColors.menu : AppColors.menu,
+                    color: AppColors.menu,
                     fontWeight: FontWeight.w600,
                   ),
                 )
               : null,
-          // trailing: isSelected
-          //     ? const Icon(
-          //         Icons.chevron_right,
-          //         size: 25,
-          //         color: Color(0xFF404046),
-          //       )
-          //     : null,
-          onTap: () {
-            setState(() {
-              _selectedIndex = index;
-            });
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget buildSubListTile({
-    required int index,
-    required String title,
-    required VoidCallback onTap,
-  }) {
-    bool isSelected = _selectedIndex == index;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 5,
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.decoretionMenu : Colors.transparent,
-          borderRadius: BorderRadius.circular(5),
-          boxShadow: isSelected
-              ? [
-                  const BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 8,
-                    offset: Offset(0, 4),
-                  ),
-                ]
-              : [],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 34),
-          child: ListTile(
-            title: isExpanded
-                ? Text(
-                    title,
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      color: isSelected ? AppColors.menu : AppColors.menu,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  )
-                : null,
-            // trailing: isSelected
-            //     ? const Icon(
-            //         Icons.chevron_right,
-            //         size: 25,
-            //         color: AppColors.menu,
-            //       )
-            //     : null,
-            onTap: () {
-              setState(() {
-                _selectedIndex = index;
-              });
-            },
-          ),
+          onTap: onTap,
         ),
       ),
     );
