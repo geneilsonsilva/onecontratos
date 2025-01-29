@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:onecontratos/pages/Home/home.dart';
-import 'package:onecontratos/pages/widgets/emitir_contratos.dart'; 
+import 'package:onecontratos/pages/widgets/emitir_contract.dart';
 
 class AppRoutes {
   static const String home = '/';

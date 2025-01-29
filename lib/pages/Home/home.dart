@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:onecontratos/pages/Utils/colors.dart';
 import 'package:onecontratos/pages/Utils/responsive.dart';
 import 'package:onecontratos/pages/Utils/routes.dart';
-import 'package:onecontratos/pages/widgets/emitir_contratos.dart';
+import 'package:onecontratos/pages/widgets/emitir_contract.dart';
 
 class PageHome extends StatefulWidget {
   const PageHome({super.key});
@@ -27,14 +27,6 @@ class _PageHomeState extends State<PageHome> {
       Navigator.pushReplacementNamed(context, AppRoutes.home);
     } else if (index == 1) {
       Navigator.pushReplacementNamed(context, AppRoutes.emitirContratos);
-    }
-  }
-
-  Widget _getSelectPage(int? selectedIndex) {
-    switch (selectedIndex) {
-      case 0:
-      default:
-        return _buildHomeScreen();
     }
   }
 
@@ -94,8 +86,8 @@ class _PageHomeState extends State<PageHome> {
                                   ListTile(
                                     leading: const CircleAvatar(
                                       radius: 20,
-                                      backgroundImage:
-                                          AssetImage('assets/image/person.png'),
+                                      // backgroundImage:
+                                      //     AssetImage('assets/image/person.png'),
                                     ),
                                     title: Column(
                                       crossAxisAlignment:
