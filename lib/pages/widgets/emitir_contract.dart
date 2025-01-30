@@ -36,11 +36,38 @@ class _EmitirContratosState extends State<EmitirContratos> {
   final TextEditingController _municipioEstadoController =
       TextEditingController();
 
+  List<TextEditingController> nomeControllers = [];
+  List<TextEditingController> nacionalidadeControllers = [];
+  List<TextEditingController> nascimentoControllers = [];
+  List<TextEditingController> rgControllers = [];
+  List<TextEditingController> cpfControllers = [];
+
   String? tipoEstadoCivil;
+  String? tipoPessoa;
+  String? tipoSexo;
+  String? tipoDocumento;
 
   void _estadoCivil(String? value) {
     setState(() {
       tipoEstadoCivil = value;
+    });
+  }
+
+  void _pessoa(String? value) {
+    setState(() {
+      tipoPessoa = value;
+    });
+  }
+
+  void _sexo(String? value) {
+    setState(() {
+      tipoSexo = value;
+    });
+  }
+
+  void _documento(String? value) {
+    setState(() {
+      tipoDocumento = value;
     });
   }
 
@@ -52,106 +79,54 @@ class _EmitirContratosState extends State<EmitirContratos> {
     }
   }
 
-  int? numeroDeSocios; // Quantidade de sócios selecionada
+  String getPessoa() {
+    if (tipoPessoa == 'juridica') {
+      return 'a pessoa juridica ';
+    } else {
+      return tipoPessoa ?? '';
+    }
+  }
+
+  String getSexo() {
+    if (tipoSexo == '') {
+      return '';
+    } else {
+      return tipoSexo ?? '';
+    }
+  }
+
+  String getDocumento() {
+    if (tipoDocumento == '') {
+      return '';
+    } else {
+      return tipoDocumento ?? '';
+    }
+  }
+
+  int? numeroDeSocios;
   List<Map<String, String>> socios = [];
   int indexAtual = 0;
   int campoAtual = 0;
-  bool exibirFormulario = false; // Controle do que exibir
+  bool exibirFormulario = false;
   TextEditingController campoController = TextEditingController();
 
   // Função para atualizar o número de sócios
-  void _atualizarNumeroDeSocios(int novoNumero) {
+  void _atualizarNumeroDeSocios(int quantidade) {
     setState(() {
-      numeroDeSocios = novoNumero;
+      numeroDeSocios = quantidade;
 
-      // Adiciona campos adicionais, mantendo os já existentes
-      if (socios.length < numeroDeSocios!) {
-        socios.addAll(
-          List.generate(
-            numeroDeSocios! - socios.length,
-            (index) => {
-              "nome": "",
-              "cpf": "",
-              "endereco": "",
-              // "naturalidade": "",
-              // "nascimento": "",
-              // "registro":"",
-              // "cpf":"",
-              // "rua":"",
-              // "numero":"",
-              // "bairro":"",
-              // "municipio":"",
-              // "cep":""
-            },
-          ),
-        );
-      } else if (socios.length > numeroDeSocios!) {
-        // Remove campos excedentes
-        socios = socios.sublist(0, numeroDeSocios!);
-      }
-
-      exibirFormulario = true; // Mostra o formulário
+      // Ajustar o tamanho das listas de controladores
+      nomeControllers =
+          List.generate(quantidade, (index) => TextEditingController());
+      nacionalidadeControllers =
+          List.generate(quantidade, (index) => TextEditingController());
+      nascimentoControllers =
+          List.generate(quantidade, (index) => TextEditingController());
+      rgControllers =
+          List.generate(quantidade, (index) => TextEditingController());
+      cpfControllers =
+          List.generate(quantidade, (index) => TextEditingController());
     });
-  }
-
-  void _avancarParaProximoCampo() {
-    if (campoAtual == 0 && socios[indexAtual]["tipo"] == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Por favor, selecione o tipo de sócio.")),
-      );
-      return;
-    }
-
-    if (campoController.text.isNotEmpty || campoAtual == 0) {
-      setState(() {
-        if (campoAtual == 0) {
-          socios[indexAtual]["nome"] = campoController.text.trim();
-        } else if (campoAtual == 1) {
-          socios[indexAtual]["cpf"] = campoController.text.trim();
-        } else if (campoAtual == 2) {
-          socios[indexAtual]["endereco"] = campoController.text.trim();
-          indexAtual++;
-          campoAtual = -1; // Reseta para o próximo sócio
-        }
-
-        campoController.clear();
-        campoAtual++;
-      });
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Por favor, preencha o campo atual.")),
-      );
-    }
-  }
-
-  // Função para voltar para o campo anterior
-  void _voltarParaCampoAnterior() {
-    if (campoAtual > 0) {
-      setState(() {
-        campoAtual--;
-        campoController.text = socios[indexAtual][_getCampoAtual()] ?? "";
-      });
-    } else if (indexAtual > 0) {
-      setState(() {
-        indexAtual--;
-        campoAtual = 2;
-        campoController.text = socios[indexAtual][_getCampoAtual()] ?? "";
-      });
-    }
-  }
-
-  // Retorna o nome do campo atual
-  String _getCampoAtual() {
-    switch (campoAtual) {
-      case 0:
-        return "nome";
-      case 1:
-        return "cpf";
-      case 2:
-        return "endereco";
-      default:
-        return "";
-    }
   }
 
   void _generatePdf() async {
@@ -228,50 +203,8 @@ class _EmitirContratosState extends State<EmitirContratos> {
               textAlign: pw.TextAlign.justify,
             ),
             pw.SizedBox(height: 10),
-            // pw.RichText(
-            //   text: pw.TextSpan(
-            //     children: [
-            //       pw.TextSpan(
-            //         text: 'MARCOS ANTONIO SILVA E SILVA',
-            //         style: pw.TextStyle(
-            //           fontSize: 12,
-            //           fontWeight: pw.FontWeight.bold,
-            //         ),
-            //       ),
-            //       const pw.TextSpan(
-            //         text:
-            //             ', brasileiro, natural de Imperatriz - MA, solteiro, nascido em 20/11/1998, empresário, portador da Carteira Nacional de Habilitação CNH',
-            //         style: pw.TextStyle(fontSize: 12),
-            //       ),
-            //       pw.TextSpan(
-            //         text: ' sob n.o 06803018837 DETRAN MA',
-            //         style: pw.TextStyle(
-            //           fontSize: 12,
-            //           fontWeight: pw.FontWeight.bold,
-            //         ),
-            //       ),
-            //       const pw.TextSpan(
-            //         text: ', e inscrito no ',
-            //         style: pw.TextStyle(fontSize: 12),
-            //       ),
-            //       pw.TextSpan(
-            //         text: ' CPF. Sob o n.o 071.232.353-80, ',
-            //         style: pw.TextStyle(
-            //           fontSize: 12,
-            //           fontWeight: pw.FontWeight.bold,
-            //         ),
-            //       ),
-            //       const pw.TextSpan(
-            //         text:
-            //             'residente e domiciliado na Rua Maranhão, n.o 933, Bairro Nova Imperatriz, Município de Imperatriz, Estado do Maranhão, CEP 65.907-110, resolvem de comum acordo constituir uma sociedade empresária limitada, conforme clausulas e condições a seguir:',
-            //         style: pw.TextStyle(fontSize: 12),
-            //       ),
-            //     ],
-            //   ),
-            //   textAlign: pw.TextAlign.justify,
-            // ),
-            // pw.SizedBox(height: 10),
-            ...socios.map((socio) => _buildSocioSection(socio)),
+            ...List.generate(
+                numeroDeSocios!, (index) => _buildSocioSection(index)),
             pw.RichText(
               text: pw.TextSpan(
                 children: [
@@ -1193,7 +1126,7 @@ class _EmitirContratosState extends State<EmitirContratos> {
   }
 
   // RINCH TEXT PRIMEIRA PAGINA
-  pw.Widget _buildSocioSection(Map<String, dynamic> socio) {
+  pw.Widget _buildSocioSection(int index) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -1201,7 +1134,7 @@ class _EmitirContratosState extends State<EmitirContratos> {
           text: pw.TextSpan(
             children: [
               pw.TextSpan(
-                text: 'MARCOS ANTONIO SILVA E SILVA',
+                text: nomeControllers[index].text.toUpperCase().trim(),
                 style: pw.TextStyle(
                   fontSize: 12,
                   fontWeight: pw.FontWeight.bold,
@@ -1275,43 +1208,100 @@ class _EmitirContratosState extends State<EmitirContratos> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            flex: 1,
-            child: Container(
-              color: const Color(0xFFFFFFFF),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // numero de sócios
-                    Center(
-                      child: SizedBox(
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // numero de sócios
+                  Center(
+                    child: SizedBox(
+                      width: 300,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 15),
+                        child: DropdownButtonFormField<int>(
+                          value: numeroDeSocios,
+                          hint: const Text("Selecione o número de sócios"),
+                          items: List.generate(
+                            3,
+                            (index) => DropdownMenuItem(
+                              value: index + 1,
+                              child: Text("${index + 2} Sócios"),
+                            ),
+                          ),
+                          onChanged: (novoNumero) {
+                            if (novoNumero != null) {
+                              _atualizarNumeroDeSocios(novoNumero);
+                              setState(() {
+                                exibirFormulario = true;
+                              });
+                            }
+                          },
+                          decoration: InputDecoration(
+                            label: const Text("Sócios"),
+                            fillColor: const Color(0xFFF1F4FF).withOpacity(0.9),
+                            filled: true,
+                            labelStyle: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w500,
+                                fontSize: 16,
+                                color: const Color(0xFF626262)),
+                            isDense: true,
+                            border: OutlineInputBorder(
+                              borderSide: const BorderSide(
+                                  color: Color(0xFF262c40), width: 2.0),
+                              borderRadius: BorderRadius.circular(11),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: const BorderSide(
+                                  color: Color(0xFF262c40), width: 2.0),
+                              borderRadius: BorderRadius.circular(11),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: const BorderSide(
+                                  color: Color(0xFF262c40), width: 2.0),
+                              borderRadius: BorderRadius.circular(11),
+                            ),
+                            focusedErrorBorder: OutlineInputBorder(
+                              borderSide: const BorderSide(
+                                  color: Color(0xFF262c40), width: 2.0),
+                              borderRadius: BorderRadius.circular(11),
+                            ),
+                            errorBorder: OutlineInputBorder(
+                              borderSide: const BorderSide(
+                                  color: Color(0xFF262c40), width: 2.0),
+                              borderRadius: BorderRadius.circular(11),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // natureza do sócio
+                  Row(
+                    children: [
+                      SizedBox(
                         width: 300,
                         child: Padding(
                           padding: const EdgeInsets.only(bottom: 15),
-                          child: DropdownButtonFormField<int>(
-                            value: numeroDeSocios,
-                            hint: const Text("Selecione o número de sócios"),
-                            items: List.generate(
-                              3,
-                              (index) => DropdownMenuItem(
-                                value: index + 1,
-                                child: Text("${index + 2} Sócios"),
+                          child: DropdownButtonFormField<String>(
+                            value: tipoPessoa,
+                            items: const [
+                              DropdownMenuItem(
+                                value: "fisica",
+                                child: Text("Pessoa Física"),
                               ),
-                            ),
-                            onChanged: (novoNumero) {
-                              if (novoNumero != null) {
-                                _atualizarNumeroDeSocios(novoNumero);
-                                setState(() {
-                                  exibirFormulario = true;
-                                });
-                              }
-                            },
+                              DropdownMenuItem(
+                                value: "juridica",
+                                child: Text("Pessoa Jurídica"),
+                              ),
+                            ],
+                            onChanged: _pessoa,
                             decoration: InputDecoration(
-                              label: const Text("Sócios"),
+                              label: const Text("Qual é a natureza"),
                               fillColor:
                                   const Color(0xFFF1F4FF).withOpacity(0.9),
                               filled: true,
@@ -1349,571 +1339,1111 @@ class _EmitirContratosState extends State<EmitirContratos> {
                           ),
                         ),
                       ),
+                    ],
+                  ),
+
+                  // sexo
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 1,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 15),
+                          child: DropdownButtonFormField<String>(
+                            value: tipoSexo,
+                            items: const [
+                              DropdownMenuItem(
+                                value: "masculino",
+                                child: Text("Masculino"),
+                              ),
+                              DropdownMenuItem(
+                                value: "feminino",
+                                child: Text("Feminito"),
+                              ),
+                            ],
+                            onChanged: _sexo,
+                            decoration: InputDecoration(
+                              label: const Text("Sexo"),
+                              fillColor:
+                                  const Color(0xFFF1F4FF).withOpacity(0.9),
+                              filled: true,
+                              labelStyle: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 16,
+                                  color: const Color(0xFF626262)),
+                              isDense: true,
+                              border: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                    color: Color(0xFF262c40), width: 2.0),
+                                borderRadius: BorderRadius.circular(11),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                    color: Color(0xFF262c40), width: 2.0),
+                                borderRadius: BorderRadius.circular(11),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                    color: Color(0xFF262c40), width: 2.0),
+                                borderRadius: BorderRadius.circular(11),
+                              ),
+                              focusedErrorBorder: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                    color: Color(0xFF262c40), width: 2.0),
+                                borderRadius: BorderRadius.circular(11),
+                              ),
+                              errorBorder: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                    color: Color(0xFF262c40), width: 2.0),
+                                borderRadius: BorderRadius.circular(11),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 25),
+                      Expanded(
+                        flex: 1,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 15),
+                          child: TextFormField(
+                            decoration: textFormField("Nome"),
+                            keyboardType: TextInputType.text,
+                            controller: _nomeController,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return "Campo obrigatório.";
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 25),
+                      // estado civil
+                      Expanded(
+                        flex: 1,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 15),
+                          child: DropdownButtonFormField<String>(
+                            value: tipoEstadoCivil,
+                            items: const [
+                              DropdownMenuItem(
+                                  value: "solteiro", child: Text("Solteiro")),
+                              DropdownMenuItem(
+                                  value: "casado", child: Text("Casado")),
+                              DropdownMenuItem(
+                                  value: "divorciado",
+                                  child: Text("Divorciado")),
+                              DropdownMenuItem(
+                                  value: "viuvo", child: Text("Viúvo")),
+                            ],
+                            onChanged: _estadoCivil,
+                            decoration: InputDecoration(
+                              label: const Text("Estado Cívil"),
+                              fillColor:
+                                  const Color(0xFFF1F4FF).withOpacity(0.9),
+                              filled: true,
+                              labelStyle: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 16,
+                                  color: const Color(0xFF626262)),
+                              isDense: true,
+                              border: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                    color: Color(0xFF262c40), width: 2.0),
+                                borderRadius: BorderRadius.circular(11),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                    color: Color(0xFF262c40), width: 2.0),
+                                borderRadius: BorderRadius.circular(11),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                    color: Color(0xFF262c40), width: 2.0),
+                                borderRadius: BorderRadius.circular(11),
+                              ),
+                              focusedErrorBorder: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                    color: Color(0xFF262c40), width: 2.0),
+                                borderRadius: BorderRadius.circular(11),
+                              ),
+                              errorBorder: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                    color: Color(0xFF262c40), width: 2.0),
+                                borderRadius: BorderRadius.circular(11),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 25),
+                      Expanded(
+                        flex: 1,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 15),
+                          child: TextFormField(
+                            decoration: textFormField("Nacionalidade"),
+                            keyboardType: TextInputType.text,
+                            controller: _nacionalidadeController,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return "Campo obrigatório.";
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 25),
+                      Expanded(
+                        flex: 1,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 15),
+                          child: TextFormField(
+                            decoration: textFormField("Profissão"),
+                            keyboardType: TextInputType.text,
+                            controller: _cpfController,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return "Campo obrigatório.";
+                              }
+                              return null;
+                            },
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              CpfInputFormatter(),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Documento de identificação:
+                  Row(
+                    children: [
+                      // Documento de identificação:
+                      Expanded(
+                        flex: 2,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 15),
+                          child: DropdownButtonFormField<String>(
+                            value: tipoDocumento,
+                            items: const [
+                              DropdownMenuItem(
+                                value: "Identidade",
+                                child: Text("Carteira de Identidade"),
+                              ),
+                              DropdownMenuItem(
+                                value: "funcional",
+                                child: Text("Identidade Funcional"),
+                              ),
+                              DropdownMenuItem(
+                                value: "CNH",
+                                child: Text("Carteira de Motorista (CNH)"),
+                              ),
+                              DropdownMenuItem(
+                                value: "Passaporte",
+                                child: Text("Passaporte"),
+                              ),
+                            ],
+                            onChanged: _documento,
+                            decoration: InputDecoration(
+                              label: const Text("Documento de Identificação"),
+                              fillColor:
+                                  const Color(0xFFF1F4FF).withOpacity(0.9),
+                              filled: true,
+                              labelStyle: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 16,
+                                  color: const Color(0xFF626262)),
+                              isDense: true,
+                              border: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                    color: Color(0xFF262c40), width: 2.0),
+                                borderRadius: BorderRadius.circular(11),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                    color: Color(0xFF262c40), width: 2.0),
+                                borderRadius: BorderRadius.circular(11),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                    color: Color(0xFF262c40), width: 2.0),
+                                borderRadius: BorderRadius.circular(11),
+                              ),
+                              focusedErrorBorder: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                    color: Color(0xFF262c40), width: 2.0),
+                                borderRadius: BorderRadius.circular(11),
+                              ),
+                              errorBorder: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                    color: Color(0xFF262c40), width: 2.0),
+                                borderRadius: BorderRadius.circular(11),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 25),
+                      Expanded(
+                        flex: 1,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 15),
+                          child: TextFormField(
+                            decoration: textFormField("Número Documento"),
+                            keyboardType: TextInputType.name,
+                            controller: _cpfController,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return "Campo obrigatório.";
+                              }
+                              return null;
+                            },
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              CpfInputFormatter(),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 25),
+                      Expanded(
+                        flex: 2,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 15),
+                          child: TextFormField(
+                            decoration: textFormField("CPF"),
+                            keyboardType: TextInputType.number,
+                            controller: _cpfController,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return "Campo obrigatório.";
+                              }
+                              return null;
+                            },
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              CpfInputFormatter(),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 25),
+                      Expanded(
+                        flex: 2,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 15),
+                          child: TextFormField(
+                            decoration: textFormField("Rua"),
+                            keyboardType: TextInputType.text,
+                            controller: _cpfController,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return "Campo obrigatório.";
+                              }
+                              return null;
+                            },
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              CpfInputFormatter(),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 25),
+                      Expanded(
+                        flex: 1,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 15),
+                          child: TextFormField(
+                            decoration: textFormField("N°"),
+                            keyboardType: TextInputType.text,
+                            controller: _cpfController,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return "Campo obrigatório.";
+                              }
+                              return null;
+                            },
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              CpfInputFormatter(),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  Row(
+                    children: [
+                      // Documento de identificação:
+                      SizedBox(
+                        width: 200,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 15),
+                          child: TextFormField(
+                            decoration: textFormField("Bairro"),
+                            keyboardType: TextInputType.text,
+                            controller: _cpfController,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return "Campo obrigatório.";
+                              }
+                              return null;
+                            },
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              CpfInputFormatter(),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 25),
+                      SizedBox(
+                        width: 250,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 15),
+                          child: TextFormField(
+                            decoration: textFormField("Estado"),
+                            keyboardType: TextInputType.text,
+                            controller: _cpfController,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return "Campo obrigatório.";
+                              }
+                              return null;
+                            },
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              CpfInputFormatter(),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 25),
+                      SizedBox(
+                        width: 200,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 15),
+                          child: TextFormField(
+                            decoration: textFormField("CEP"),
+                            keyboardType: TextInputType.number,
+                            controller: _cpfController,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return "Campo obrigatório.";
+                              }
+                              return null;
+                            },
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              CpfInputFormatter(),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 5),
+                  const Divider(thickness: 1, color: Colors.grey),
+                  const SizedBox(height: 15),
+
+                  Row(
+                    children: [
+                      // atividade economica
+                      SizedBox(
+                        width: 500,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 15),
+                          child: TextFormField(
+                            decoration: textFormField("Atividade Economica"),
+                            keyboardType: TextInputType.number,
+                            controller: _cpfController,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return "Campo obrigatório.";
+                              }
+                              return null;
+                            },
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              CpfInputFormatter(),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 25),
+                      SizedBox(
+                        width: 250,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 15),
+                          child: TextFormField(
+                            decoration: textFormField("Município e Estado"),
+                            keyboardType: TextInputType.number,
+                            controller: _cpfController,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return "Campo obrigatório.";
+                              }
+                              return null;
+                            },
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              CpfInputFormatter(),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 25),
+                      SizedBox(
+                        width: 200,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 15),
+                          child: TextFormField(
+                            decoration: textFormField("CEP"),
+                            keyboardType: TextInputType.number,
+                            controller: _cpfController,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return "Campo obrigatório.";
+                              }
+                              return null;
+                            },
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              CpfInputFormatter(),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 5),
+                  const Divider(thickness: 1, color: Colors.grey),
+                  const SizedBox(height: 15),
+                  // |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+                  // |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+                  // |||||||||||||||||||||||||||||||||||| FORMULARIO SOCIOS ||||||||||||||||||||||||||||||||||||||||
+                  // |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+                  // |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+                  Column(
+                    children: List.generate(
+                      numeroDeSocios ??
+                          0, // Gera a quantidade de campos conforme o número de sócios
+                      (index) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                SizedBox(
+                                  width: 300,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(bottom: 15),
+                                    child: DropdownButtonFormField<String>(
+                                      value: tipoPessoa,
+                                      items: const [
+                                        DropdownMenuItem(
+                                          value: "fisica",
+                                          child: Text("Pessoa Física"),
+                                        ),
+                                        DropdownMenuItem(
+                                          value: "juridica",
+                                          child: Text("Pessoa Jurídica"),
+                                        ),
+                                      ],
+                                      onChanged: _pessoa,
+                                      decoration: InputDecoration(
+                                        label: const Text("Qual é a natureza"),
+                                        fillColor: const Color(0xFFF1F4FF)
+                                            .withOpacity(0.9),
+                                        filled: true,
+                                        labelStyle: GoogleFonts.poppins(
+                                            fontWeight: FontWeight.w500,
+                                            fontSize: 16,
+                                            color: const Color(0xFF626262)),
+                                        isDense: true,
+                                        border: OutlineInputBorder(
+                                          borderSide: const BorderSide(
+                                              color: Color(0xFF262c40),
+                                              width: 2.0),
+                                          borderRadius:
+                                              BorderRadius.circular(11),
+                                        ),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderSide: const BorderSide(
+                                              color: Color(0xFF262c40),
+                                              width: 2.0),
+                                          borderRadius:
+                                              BorderRadius.circular(11),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderSide: const BorderSide(
+                                              color: Color(0xFF262c40),
+                                              width: 2.0),
+                                          borderRadius:
+                                              BorderRadius.circular(11),
+                                        ),
+                                        focusedErrorBorder: OutlineInputBorder(
+                                          borderSide: const BorderSide(
+                                              color: Color(0xFF262c40),
+                                              width: 2.0),
+                                          borderRadius:
+                                              BorderRadius.circular(11),
+                                        ),
+                                        errorBorder: OutlineInputBorder(
+                                          borderSide: const BorderSide(
+                                              color: Color(0xFF262c40),
+                                              width: 2.0),
+                                          borderRadius:
+                                              BorderRadius.circular(11),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            // sexo
+                            Row(
+                              children: [
+                                Expanded(
+                                  flex: 1,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(bottom: 15),
+                                    child: DropdownButtonFormField<String>(
+                                      value: tipoSexo,
+                                      items: const [
+                                        DropdownMenuItem(
+                                          value: "masculino",
+                                          child: Text("Masculino"),
+                                        ),
+                                        DropdownMenuItem(
+                                          value: "feminino",
+                                          child: Text("Feminito"),
+                                        ),
+                                      ],
+                                      onChanged: _sexo,
+                                      decoration: InputDecoration(
+                                        label: const Text("Sexo"),
+                                        fillColor: const Color(0xFFF1F4FF)
+                                            .withOpacity(0.9),
+                                        filled: true,
+                                        labelStyle: GoogleFonts.poppins(
+                                            fontWeight: FontWeight.w500,
+                                            fontSize: 16,
+                                            color: const Color(0xFF626262)),
+                                        isDense: true,
+                                        border: OutlineInputBorder(
+                                          borderSide: const BorderSide(
+                                              color: Color(0xFF262c40),
+                                              width: 2.0),
+                                          borderRadius:
+                                              BorderRadius.circular(11),
+                                        ),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderSide: const BorderSide(
+                                              color: Color(0xFF262c40),
+                                              width: 2.0),
+                                          borderRadius:
+                                              BorderRadius.circular(11),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderSide: const BorderSide(
+                                              color: Color(0xFF262c40),
+                                              width: 2.0),
+                                          borderRadius:
+                                              BorderRadius.circular(11),
+                                        ),
+                                        focusedErrorBorder: OutlineInputBorder(
+                                          borderSide: const BorderSide(
+                                              color: Color(0xFF262c40),
+                                              width: 2.0),
+                                          borderRadius:
+                                              BorderRadius.circular(11),
+                                        ),
+                                        errorBorder: OutlineInputBorder(
+                                          borderSide: const BorderSide(
+                                              color: Color(0xFF262c40),
+                                              width: 2.0),
+                                          borderRadius:
+                                              BorderRadius.circular(11),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 25),
+                                Expanded(
+                                  flex: 1,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(bottom: 15),
+                                    child: TextFormField(
+                                      decoration: textFormField("Nome"),
+                                      keyboardType: TextInputType.text,
+                                      controller: nomeControllers[index],
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return "Campo obrigatório.";
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 25),
+                                // estado civil
+                                Expanded(
+                                  flex: 1,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(bottom: 15),
+                                    child: DropdownButtonFormField<String>(
+                                      value:
+                                          tipoEstadoCivil, // Valor selecionado
+                                      items: const [
+                                        DropdownMenuItem(
+                                            value: "solteiro",
+                                            child: Text("Solteiro")),
+                                        DropdownMenuItem(
+                                            value: "casado",
+                                            child: Text("Casado")),
+                                        DropdownMenuItem(
+                                            value: "divorciado",
+                                            child: Text("Divorciado")),
+                                        DropdownMenuItem(
+                                            value: "viuvo",
+                                            child: Text("Viúvo")),
+                                      ],
+                                      onChanged: _estadoCivil,
+
+                                      decoration: InputDecoration(
+                                        label: const Text("Estado Cívil"),
+                                        fillColor: const Color(0xFFF1F4FF)
+                                            .withOpacity(0.9),
+                                        filled: true,
+                                        labelStyle: GoogleFonts.poppins(
+                                            fontWeight: FontWeight.w500,
+                                            fontSize: 16,
+                                            color: const Color(0xFF626262)),
+                                        isDense: true,
+                                        border: OutlineInputBorder(
+                                          borderSide: const BorderSide(
+                                              color: Color(0xFF262c40),
+                                              width: 2.0),
+                                          borderRadius:
+                                              BorderRadius.circular(11),
+                                        ),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderSide: const BorderSide(
+                                              color: Color(0xFF262c40),
+                                              width: 2.0),
+                                          borderRadius:
+                                              BorderRadius.circular(11),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderSide: const BorderSide(
+                                              color: Color(0xFF262c40),
+                                              width: 2.0),
+                                          borderRadius:
+                                              BorderRadius.circular(11),
+                                        ),
+                                        focusedErrorBorder: OutlineInputBorder(
+                                          borderSide: const BorderSide(
+                                              color: Color(0xFF262c40),
+                                              width: 2.0),
+                                          borderRadius:
+                                              BorderRadius.circular(11),
+                                        ),
+                                        errorBorder: OutlineInputBorder(
+                                          borderSide: const BorderSide(
+                                              color: Color(0xFF262c40),
+                                              width: 2.0),
+                                          borderRadius:
+                                              BorderRadius.circular(11),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 25),
+                                Expanded(
+                                  flex: 1,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(bottom: 15),
+                                    child: TextFormField(
+                                      decoration:
+                                          textFormField("Nacionalidade"),
+                                      keyboardType: TextInputType.text,
+                                      controller:
+                                          nacionalidadeControllers[index],
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return "Campo obrigatório.";
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 25),
+                                Expanded(
+                                  flex: 1,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(bottom: 15),
+                                    child: TextFormField(
+                                      decoration: textFormField("Profissão"),
+                                      keyboardType: TextInputType.text,
+                                      controller: _cpfController,
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return "Campo obrigatório.";
+                                        }
+                                        return null;
+                                      },
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.digitsOnly,
+                                        CpfInputFormatter(),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            // Documento de identificação:
+                            Row(
+                              children: [
+                                // Documento de identificação:
+                                Expanded(
+                                  flex: 2,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(bottom: 15),
+                                    child: DropdownButtonFormField<int>(
+                                      value: numeroDeSocios,
+                                      hint: const Text("Selecione o documento"),
+                                      items: List.generate(
+                                        3,
+                                        (index) => DropdownMenuItem(
+                                          value: index + 1,
+                                          child: Text("${index + 2} Sócios"),
+                                        ),
+                                      ),
+                                      onChanged: (novoNumero) {
+                                        if (novoNumero != null) {
+                                          _atualizarNumeroDeSocios(novoNumero);
+                                          setState(() {
+                                            exibirFormulario = true;
+                                          });
+                                        }
+                                      },
+                                      decoration: InputDecoration(
+                                        label: const Text(
+                                            "Documento de Identificação"),
+                                        fillColor: const Color(0xFFF1F4FF)
+                                            .withOpacity(0.9),
+                                        filled: true,
+                                        labelStyle: GoogleFonts.poppins(
+                                            fontWeight: FontWeight.w500,
+                                            fontSize: 16,
+                                            color: const Color(0xFF626262)),
+                                        isDense: true,
+                                        border: OutlineInputBorder(
+                                          borderSide: const BorderSide(
+                                              color: Color(0xFF262c40),
+                                              width: 2.0),
+                                          borderRadius:
+                                              BorderRadius.circular(11),
+                                        ),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderSide: const BorderSide(
+                                              color: Color(0xFF262c40),
+                                              width: 2.0),
+                                          borderRadius:
+                                              BorderRadius.circular(11),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderSide: const BorderSide(
+                                              color: Color(0xFF262c40),
+                                              width: 2.0),
+                                          borderRadius:
+                                              BorderRadius.circular(11),
+                                        ),
+                                        focusedErrorBorder: OutlineInputBorder(
+                                          borderSide: const BorderSide(
+                                              color: Color(0xFF262c40),
+                                              width: 2.0),
+                                          borderRadius:
+                                              BorderRadius.circular(11),
+                                        ),
+                                        errorBorder: OutlineInputBorder(
+                                          borderSide: const BorderSide(
+                                              color: Color(0xFF262c40),
+                                              width: 2.0),
+                                          borderRadius:
+                                              BorderRadius.circular(11),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 25),
+                                Expanded(
+                                  flex: 1,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(bottom: 15),
+                                    child: TextFormField(
+                                      decoration:
+                                          textFormField("Número Documento"),
+                                      keyboardType: TextInputType.name,
+                                      controller: _cpfController,
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return "Campo obrigatório.";
+                                        }
+                                        return null;
+                                      },
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.digitsOnly,
+                                        CpfInputFormatter(),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 25),
+                                Expanded(
+                                  flex: 2,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(bottom: 15),
+                                    child: TextFormField(
+                                      decoration: textFormField("CPF"),
+                                      keyboardType: TextInputType.number,
+                                      controller: cpfControllers[index],
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return "Campo obrigatório.";
+                                        }
+                                        return null;
+                                      },
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.digitsOnly,
+                                        CpfInputFormatter(),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 25),
+                                Expanded(
+                                  flex: 2,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(bottom: 15),
+                                    child: TextFormField(
+                                      decoration: textFormField("Rua"),
+                                      keyboardType: TextInputType.text,
+                                      controller: _cpfController,
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return "Campo obrigatório.";
+                                        }
+                                        return null;
+                                      },
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.digitsOnly,
+                                        CpfInputFormatter(),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 25),
+                                Expanded(
+                                  flex: 1,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(bottom: 15),
+                                    child: TextFormField(
+                                      decoration: textFormField("N°"),
+                                      keyboardType: TextInputType.text,
+                                      controller: _cpfController,
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return "Campo obrigatório.";
+                                        }
+                                        return null;
+                                      },
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.digitsOnly,
+                                        CpfInputFormatter(),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            Row(
+                              children: [
+                                // Documento de identificação:
+                                SizedBox(
+                                  width: 200,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(bottom: 15),
+                                    child: TextFormField(
+                                      decoration: textFormField("Bairro"),
+                                      keyboardType: TextInputType.text,
+                                      controller: _cpfController,
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return "Campo obrigatório.";
+                                        }
+                                        return null;
+                                      },
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.digitsOnly,
+                                        CpfInputFormatter(),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 25),
+                                SizedBox(
+                                  width: 250,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(bottom: 15),
+                                    child: TextFormField(
+                                      decoration: textFormField("Estado"),
+                                      keyboardType: TextInputType.text,
+                                      controller: _cpfController,
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return "Campo obrigatório.";
+                                        }
+                                        return null;
+                                      },
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.digitsOnly,
+                                        CpfInputFormatter(),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 25),
+                                SizedBox(
+                                  width: 200,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(bottom: 15),
+                                    child: TextFormField(
+                                      decoration: textFormField("CEP"),
+                                      keyboardType: TextInputType.number,
+                                      controller: _cpfController,
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return "Campo obrigatório.";
+                                        }
+                                        return null;
+                                      },
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.digitsOnly,
+                                        CpfInputFormatter(),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 5),
+                            const Divider(thickness: 1, color: Colors.grey),
+                            const SizedBox(height: 15),
+
+                            Row(
+                              children: [
+                                // atividade economica
+                                SizedBox(
+                                  width: 500,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(bottom: 15),
+                                    child: TextFormField(
+                                      decoration:
+                                          textFormField("Atividade Economica"),
+                                      keyboardType: TextInputType.number,
+                                      controller: _cpfController,
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return "Campo obrigatório.";
+                                        }
+                                        return null;
+                                      },
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.digitsOnly,
+                                        CpfInputFormatter(),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 25),
+                                SizedBox(
+                                  width: 250,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(bottom: 15),
+                                    child: TextFormField(
+                                      decoration:
+                                          textFormField("Município e Estado"),
+                                      keyboardType: TextInputType.number,
+                                      controller: _cpfController,
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return "Campo obrigatório.";
+                                        }
+                                        return null;
+                                      },
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.digitsOnly,
+                                        CpfInputFormatter(),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 25),
+                                SizedBox(
+                                  width: 200,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(bottom: 15),
+                                    child: TextFormField(
+                                      decoration: textFormField("CEP"),
+                                      keyboardType: TextInputType.number,
+                                      controller: _cpfController,
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return "Campo obrigatório.";
+                                        }
+                                        return null;
+                                      },
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.digitsOnly,
+                                        CpfInputFormatter(),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                    const SizedBox(height: 5),
-                    const Divider(thickness: 1, color: Colors.grey),
-                    const SizedBox(height: 15),
-
-                    // natureza do sócio
-                    Row(
-                      children: [
-                        SizedBox(
-                          width: 300,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 15),
-                            child: DropdownButtonFormField<int>(
-                              value: numeroDeSocios,
-                              hint:
-                                  const Text("Selecione a natureza do sócio?"),
-                              items: List.generate(
-                                3,
-                                (index) => DropdownMenuItem(
-                                  value: index + 1,
-                                  child: Text("${index + 2} Sócios"),
-                                ),
-                              ),
-                              onChanged: (novoNumero) {
-                                if (novoNumero != null) {
-                                  _atualizarNumeroDeSocios(novoNumero);
-                                  setState(() {
-                                    exibirFormulario = true;
-                                  });
-                                }
-                              },
-                              decoration: InputDecoration(
-                                label: const Text("Sócios"),
-                                fillColor:
-                                    const Color(0xFFF1F4FF).withOpacity(0.9),
-                                filled: true,
-                                labelStyle: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 16,
-                                    color: const Color(0xFF626262)),
-                                isDense: true,
-                                border: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFF262c40), width: 2.0),
-                                  borderRadius: BorderRadius.circular(11),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFF262c40), width: 2.0),
-                                  borderRadius: BorderRadius.circular(11),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFF262c40), width: 2.0),
-                                  borderRadius: BorderRadius.circular(11),
-                                ),
-                                focusedErrorBorder: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFF262c40), width: 2.0),
-                                  borderRadius: BorderRadius.circular(11),
-                                ),
-                                errorBorder: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFF262c40), width: 2.0),
-                                  borderRadius: BorderRadius.circular(11),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    // sexo
-                    Row(
-                      children: [
-                        Expanded(
-                          flex: 1,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 15),
-                            child: DropdownButtonFormField<int>(
-                              value: numeroDeSocios,
-                              hint: const Text("Selecione sexo"),
-                              items: List.generate(
-                                3,
-                                (index) => DropdownMenuItem(
-                                  value: index + 1,
-                                  child: Text("${index + 2} Sócios"),
-                                ),
-                              ),
-                              onChanged: (novoNumero) {
-                                if (novoNumero != null) {
-                                  _atualizarNumeroDeSocios(novoNumero);
-                                  setState(() {
-                                    exibirFormulario = true;
-                                  });
-                                }
-                              },
-                              decoration: InputDecoration(
-                                label: const Text("Sexo"),
-                                fillColor:
-                                    const Color(0xFFF1F4FF).withOpacity(0.9),
-                                filled: true,
-                                labelStyle: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 16,
-                                    color: const Color(0xFF626262)),
-                                isDense: true,
-                                border: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFF262c40), width: 2.0),
-                                  borderRadius: BorderRadius.circular(11),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFF262c40), width: 2.0),
-                                  borderRadius: BorderRadius.circular(11),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFF262c40), width: 2.0),
-                                  borderRadius: BorderRadius.circular(11),
-                                ),
-                                focusedErrorBorder: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFF262c40), width: 2.0),
-                                  borderRadius: BorderRadius.circular(11),
-                                ),
-                                errorBorder: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFF262c40), width: 2.0),
-                                  borderRadius: BorderRadius.circular(11),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 25),
-                        Expanded(
-                          flex: 1,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 15),
-                            child: TextFormField(
-                              decoration: textFormField("Nome"),
-                              keyboardType: TextInputType.text,
-                              controller: _nomeController,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return "Campo obrigatório.";
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 25),
-                        // estado civil
-                        Expanded(
-                          flex: 1,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 15),
-                            child: DropdownButtonFormField<String>(
-                              value: tipoEstadoCivil, // Valor selecionado
-                              items: const [
-                                DropdownMenuItem(
-                                    value: "solteiro", child: Text("Solteiro")),
-                                DropdownMenuItem(
-                                    value: "casado", child: Text("Casado")),
-                                DropdownMenuItem(
-                                    value: "divorciado",
-                                    child: Text("Divorciado")),
-                                DropdownMenuItem(
-                                    value: "viuvo", child: Text("Viúvo")),
-                              ],
-                              onChanged: _estadoCivil,
-
-                              decoration: InputDecoration(
-                                label: const Text("Estado Cívil"),
-                                fillColor:
-                                    const Color(0xFFF1F4FF).withOpacity(0.9),
-                                filled: true,
-                                labelStyle: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 16,
-                                    color: const Color(0xFF626262)),
-                                isDense: true,
-                                border: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFF262c40), width: 2.0),
-                                  borderRadius: BorderRadius.circular(11),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFF262c40), width: 2.0),
-                                  borderRadius: BorderRadius.circular(11),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFF262c40), width: 2.0),
-                                  borderRadius: BorderRadius.circular(11),
-                                ),
-                                focusedErrorBorder: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFF262c40), width: 2.0),
-                                  borderRadius: BorderRadius.circular(11),
-                                ),
-                                errorBorder: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFF262c40), width: 2.0),
-                                  borderRadius: BorderRadius.circular(11),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 25),
-                        Expanded(
-                          flex: 1,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 15),
-                            child: TextFormField(
-                              decoration: textFormField("Nacionalidade"),
-                              keyboardType: TextInputType.text,
-                              controller: _nacionalidadeController,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return "Campo obrigatório.";
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 25),
-                        Expanded(
-                          flex: 1,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 15),
-                            child: TextFormField(
-                              decoration: textFormField("Profissão"),
-                              keyboardType: TextInputType.text,
-                              controller: _cpfController,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return "Campo obrigatório.";
-                                }
-                                return null;
-                              },
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                                CpfInputFormatter(),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    // Documento de identificação:
-                    Row(
-                      children: [
-                        // Documento de identificação:
-                        Expanded(
-                          flex: 2,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 15),
-                            child: DropdownButtonFormField<int>(
-                              value: numeroDeSocios,
-                              hint: const Text("Selecione o documento"),
-                              items: List.generate(
-                                3,
-                                (index) => DropdownMenuItem(
-                                  value: index + 1,
-                                  child: Text("${index + 2} Sócios"),
-                                ),
-                              ),
-                              onChanged: (novoNumero) {
-                                if (novoNumero != null) {
-                                  _atualizarNumeroDeSocios(novoNumero);
-                                  setState(() {
-                                    exibirFormulario = true;
-                                  });
-                                }
-                              },
-                              decoration: InputDecoration(
-                                label: const Text("Documento de Identificação"),
-                                fillColor:
-                                    const Color(0xFFF1F4FF).withOpacity(0.9),
-                                filled: true,
-                                labelStyle: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 16,
-                                    color: const Color(0xFF626262)),
-                                isDense: true,
-                                border: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFF262c40), width: 2.0),
-                                  borderRadius: BorderRadius.circular(11),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFF262c40), width: 2.0),
-                                  borderRadius: BorderRadius.circular(11),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFF262c40), width: 2.0),
-                                  borderRadius: BorderRadius.circular(11),
-                                ),
-                                focusedErrorBorder: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFF262c40), width: 2.0),
-                                  borderRadius: BorderRadius.circular(11),
-                                ),
-                                errorBorder: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFF262c40), width: 2.0),
-                                  borderRadius: BorderRadius.circular(11),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 25),
-                        Expanded(
-                          flex: 1,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 15),
-                            child: TextFormField(
-                              decoration: textFormField("Número Documento"),
-                              keyboardType: TextInputType.name,
-                              controller: _cpfController,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return "Campo obrigatório.";
-                                }
-                                return null;
-                              },
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                                CpfInputFormatter(),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 25),
-                        Expanded(
-                          flex: 2,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 15),
-                            child: TextFormField(
-                              decoration: textFormField("CPF"),
-                              keyboardType: TextInputType.number,
-                              controller: _cpfController,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return "Campo obrigatório.";
-                                }
-                                return null;
-                              },
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                                CpfInputFormatter(),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 25),
-                        Expanded(
-                          flex: 2,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 15),
-                            child: TextFormField(
-                              decoration: textFormField("Rua"),
-                              keyboardType: TextInputType.text,
-                              controller: _cpfController,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return "Campo obrigatório.";
-                                }
-                                return null;
-                              },
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                                CpfInputFormatter(),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 25),
-                        Expanded(
-                          flex: 1,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 15),
-                            child: TextFormField(
-                              decoration: textFormField("N°"),
-                              keyboardType: TextInputType.text,
-                              controller: _cpfController,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return "Campo obrigatório.";
-                                }
-                                return null;
-                              },
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                                CpfInputFormatter(),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    Row(
-                      children: [
-                        // Documento de identificação:
-                        SizedBox(
-                          width: 200,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 15),
-                            child: TextFormField(
-                              decoration: textFormField("Bairro"),
-                              keyboardType: TextInputType.text,
-                              controller: _cpfController,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return "Campo obrigatório.";
-                                }
-                                return null;
-                              },
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                                CpfInputFormatter(),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 25),
-                        SizedBox(
-                          width: 250,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 15),
-                            child: TextFormField(
-                              decoration: textFormField("Estado"),
-                              keyboardType: TextInputType.text,
-                              controller: _cpfController,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return "Campo obrigatório.";
-                                }
-                                return null;
-                              },
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                                CpfInputFormatter(),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 25),
-                        SizedBox(
-                          width: 200,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 15),
-                            child: TextFormField(
-                              decoration: textFormField("CEP"),
-                              keyboardType: TextInputType.number,
-                              controller: _cpfController,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return "Campo obrigatório.";
-                                }
-                                return null;
-                              },
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                                CpfInputFormatter(),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 5),
-                    const Divider(thickness: 1, color: Colors.grey),
-                    const SizedBox(height: 15),
-
-                    Row(
-                      children: [
-                        // atividade economica
-                        SizedBox(
-                          width: 500,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 15),
-                            child: TextFormField(
-                              decoration: textFormField("Atividade Economica"),
-                              keyboardType: TextInputType.number,
-                              controller: _cpfController,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return "Campo obrigatório.";
-                                }
-                                return null;
-                              },
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                                CpfInputFormatter(),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 25),
-                        SizedBox(
-                          width: 250,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 15),
-                            child: TextFormField(
-                              decoration: textFormField("Município e Estado"),
-                              keyboardType: TextInputType.number,
-                              controller: _cpfController,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return "Campo obrigatório.";
-                                }
-                                return null;
-                              },
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                                CpfInputFormatter(),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 25),
-                        SizedBox(
-                          width: 200,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 15),
-                            child: TextFormField(
-                              decoration: textFormField("CEP"),
-                              keyboardType: TextInputType.number,
-                              controller: _cpfController,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return "Campo obrigatório.";
-                                }
-                                return null;
-                              },
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                                CpfInputFormatter(),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
