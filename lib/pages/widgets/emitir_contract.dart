@@ -16,6 +16,12 @@ class EmitirContratos extends StatefulWidget {
 }
 
 class _EmitirContratosState extends State<EmitirContratos> {
+  int? numeroDeSocios;
+  List<Map<String, String>> socios = [];
+  int indexAtual = 0;
+  int campoAtual = 0;
+  bool exibirFormulario = false;
+
   final TextEditingController _sexoController = TextEditingController();
   final TextEditingController _nomeController = TextEditingController();
   final TextEditingController _nacionalidadeController =
@@ -41,6 +47,10 @@ class _EmitirContratosState extends State<EmitirContratos> {
   List<TextEditingController> nascimentoControllers = [];
   List<TextEditingController> rgControllers = [];
   List<TextEditingController> cpfControllers = [];
+  List<String?> sexoControllers = [];
+  List<String?> naturezaSocioControllers = [];
+  List<String?> estadoCivilSocioControllers = [];
+  List<String?> tipoDocControllers = [];
 
   String? tipoEstadoCivil;
   String? tipoPessoa;
@@ -71,7 +81,7 @@ class _EmitirContratosState extends State<EmitirContratos> {
     });
   }
 
-  String getEstadoCivilDescricao() {
+  String _getEstadoCivilDescricao() {
     if (tipoEstadoCivil == 'casado') {
       return 'casado, sob comunhão parcial de bens';
     } else {
@@ -88,32 +98,18 @@ class _EmitirContratosState extends State<EmitirContratos> {
   }
 
   String getSexo() {
-    if (tipoSexo == '') {
-      return '';
-    } else {
-      return tipoSexo ?? '';
-    }
+    return tipoSexo ?? '';
   }
 
   String getDocumento() {
-    if (tipoDocumento == '') {
-      return '';
-    } else {
-      return tipoDocumento ?? '';
-    }
+    return tipoDocumento ?? '';
   }
-
-  int? numeroDeSocios;
-  List<Map<String, String>> socios = [];
-  int indexAtual = 0;
-  int campoAtual = 0;
-  bool exibirFormulario = false;
-  TextEditingController campoController = TextEditingController();
 
   // Função para atualizar o número de sócios
   void _atualizarNumeroDeSocios(int quantidade) {
     setState(() {
       numeroDeSocios = quantidade;
+      exibirFormulario = true;
 
       // Ajustar o tamanho das listas de controladores
       nomeControllers =
@@ -126,6 +122,13 @@ class _EmitirContratosState extends State<EmitirContratos> {
           List.generate(quantidade, (index) => TextEditingController());
       cpfControllers =
           List.generate(quantidade, (index) => TextEditingController());
+      sexoControllers = List.generate(quantidade, (index) => null);
+      List.generate(quantidade, (index) => TextEditingController());
+      naturezaSocioControllers = List.generate(quantidade, (index) => null);
+      List.generate(quantidade, (index) => TextEditingController());
+      estadoCivilSocioControllers = List.generate(quantidade, (index) => null);
+      List.generate(quantidade, (index) => TextEditingController());
+      tipoDocControllers = List.generate(quantidade, (index) => null);
     });
   }
 
@@ -171,7 +174,7 @@ class _EmitirContratosState extends State<EmitirContratos> {
                   ),
                   pw.TextSpan(
                     text:
-                        ', ${_nacionalidadeController.text.trim()}, ${getEstadoCivilDescricao()}, natural de Imperatriz - MA, nascido em ${_nascimentoController.text.trim()}, portador da Cédula de Identidade',
+                        ', ${_nacionalidadeController.text.trim()}, ${_getEstadoCivilDescricao()}, natural de Imperatriz - MA, nascido em ${_nascimentoController.text.trim()}, portador da Cédula de Identidade',
                     style: const pw.TextStyle(fontSize: 12),
                   ),
                   pw.TextSpan(
@@ -1224,7 +1227,11 @@ class _EmitirContratosState extends State<EmitirContratos> {
                         padding: const EdgeInsets.only(bottom: 15),
                         child: DropdownButtonFormField<int>(
                           value: numeroDeSocios,
-                          hint: const Text("Selecione o número de sócios"),
+                          hint: Text(
+                            "Selecione o número de sócios",
+                            style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.bold),
+                          ),
                           items: List.generate(
                             3,
                             (index) => DropdownMenuItem(
@@ -1281,6 +1288,20 @@ class _EmitirContratosState extends State<EmitirContratos> {
                   ),
 
                   // natureza do sócio
+
+                  Row(
+                    children: [
+                      if (exibirFormulario)
+                        Text(
+                          "Sócio 1",
+                          style: GoogleFonts.poppins(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black,
+                          ),
+                        ),
+                    ],
+                  ),
                   Row(
                     children: [
                       SizedBox(
@@ -1511,10 +1532,6 @@ class _EmitirContratosState extends State<EmitirContratos> {
                               }
                               return null;
                             },
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              CpfInputFormatter(),
-                            ],
                           ),
                         ),
                       ),
@@ -1751,84 +1768,6 @@ class _EmitirContratosState extends State<EmitirContratos> {
                     ],
                   ),
 
-                  const SizedBox(height: 5),
-                  const Divider(thickness: 1, color: Colors.grey),
-                  const SizedBox(height: 15),
-
-                  Row(
-                    children: [
-                      // atividade economica
-                      SizedBox(
-                        width: 500,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 15),
-                          child: TextFormField(
-                            decoration: textFormField("Atividade Economica"),
-                            keyboardType: TextInputType.number,
-                            controller: _cpfController,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return "Campo obrigatório.";
-                              }
-                              return null;
-                            },
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              CpfInputFormatter(),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 25),
-                      SizedBox(
-                        width: 250,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 15),
-                          child: TextFormField(
-                            decoration: textFormField("Município e Estado"),
-                            keyboardType: TextInputType.number,
-                            controller: _cpfController,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return "Campo obrigatório.";
-                              }
-                              return null;
-                            },
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              CpfInputFormatter(),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 25),
-                      SizedBox(
-                        width: 200,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 15),
-                          child: TextFormField(
-                            decoration: textFormField("CEP"),
-                            keyboardType: TextInputType.number,
-                            controller: _cpfController,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return "Campo obrigatório.";
-                              }
-                              return null;
-                            },
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              CpfInputFormatter(),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 5),
-                  const Divider(thickness: 1, color: Colors.grey),
-                  const SizedBox(height: 15),
                   // |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
                   // |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
                   // |||||||||||||||||||||||||||||||||||| FORMULARIO SOCIOS ||||||||||||||||||||||||||||||||||||||||
@@ -1842,6 +1781,24 @@ class _EmitirContratosState extends State<EmitirContratos> {
                         padding: const EdgeInsets.symmetric(vertical: 8.0),
                         child: Column(
                           children: [
+                            const SizedBox(height: 5),
+                            const Divider(thickness: 1, color: Colors.grey),
+                            const SizedBox(height: 15),
+                            Row(
+                              children: [
+                                Text(
+                                  "Sócio ${index + 2}",
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 5),
+
                             Row(
                               children: [
                                 SizedBox(
@@ -1849,7 +1806,7 @@ class _EmitirContratosState extends State<EmitirContratos> {
                                   child: Padding(
                                     padding: const EdgeInsets.only(bottom: 15),
                                     child: DropdownButtonFormField<String>(
-                                      value: tipoPessoa,
+                                      value: naturezaSocioControllers[index],
                                       items: const [
                                         DropdownMenuItem(
                                           value: "fisica",
@@ -1860,7 +1817,14 @@ class _EmitirContratosState extends State<EmitirContratos> {
                                           child: Text("Pessoa Jurídica"),
                                         ),
                                       ],
-                                      onChanged: _pessoa,
+                                      onChanged: (String? newValue) {
+                                        if (newValue != null) {
+                                          setState(() {
+                                            naturezaSocioControllers[index] =
+                                                newValue;
+                                          });
+                                        }
+                                      },
                                       decoration: InputDecoration(
                                         label: const Text("Qual é a natureza"),
                                         fillColor: const Color(0xFFF1F4FF)
@@ -1921,7 +1885,7 @@ class _EmitirContratosState extends State<EmitirContratos> {
                                   child: Padding(
                                     padding: const EdgeInsets.only(bottom: 15),
                                     child: DropdownButtonFormField<String>(
-                                      value: tipoSexo,
+                                      value: sexoControllers[index],
                                       items: const [
                                         DropdownMenuItem(
                                           value: "masculino",
@@ -1929,19 +1893,26 @@ class _EmitirContratosState extends State<EmitirContratos> {
                                         ),
                                         DropdownMenuItem(
                                           value: "feminino",
-                                          child: Text("Feminito"),
+                                          child: Text("Feminino"),
                                         ),
                                       ],
-                                      onChanged: _sexo,
+                                      onChanged: (String? newValue) {
+                                        if (newValue != null) {
+                                          setState(() {
+                                            sexoControllers[index] = newValue;
+                                          });
+                                        }
+                                      },
                                       decoration: InputDecoration(
                                         label: const Text("Sexo"),
                                         fillColor: const Color(0xFFF1F4FF)
                                             .withOpacity(0.9),
                                         filled: true,
                                         labelStyle: GoogleFonts.poppins(
-                                            fontWeight: FontWeight.w500,
-                                            fontSize: 16,
-                                            color: const Color(0xFF626262)),
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 16,
+                                          color: const Color(0xFF626262),
+                                        ),
                                         isDense: true,
                                         border: OutlineInputBorder(
                                           borderSide: const BorderSide(
@@ -2007,8 +1978,7 @@ class _EmitirContratosState extends State<EmitirContratos> {
                                   child: Padding(
                                     padding: const EdgeInsets.only(bottom: 15),
                                     child: DropdownButtonFormField<String>(
-                                      value:
-                                          tipoEstadoCivil, // Valor selecionado
+                                      value: estadoCivilSocioControllers[index],
                                       items: const [
                                         DropdownMenuItem(
                                             value: "solteiro",
@@ -2023,8 +1993,16 @@ class _EmitirContratosState extends State<EmitirContratos> {
                                             value: "viuvo",
                                             child: Text("Viúvo")),
                                       ],
-                                      onChanged: _estadoCivil,
-
+                                      onChanged: (String? newValue) {
+                                        if (newValue != null) {
+                                          setState(
+                                            () {
+                                              estadoCivilSocioControllers[
+                                                  index] = newValue;
+                                            },
+                                          );
+                                        }
+                                      },
                                       decoration: InputDecoration(
                                         label: const Text("Estado Cívil"),
                                         fillColor: const Color(0xFFF1F4FF)
@@ -2127,22 +2105,35 @@ class _EmitirContratosState extends State<EmitirContratos> {
                                   flex: 2,
                                   child: Padding(
                                     padding: const EdgeInsets.only(bottom: 15),
-                                    child: DropdownButtonFormField<int>(
-                                      value: numeroDeSocios,
-                                      hint: const Text("Selecione o documento"),
-                                      items: List.generate(
-                                        3,
-                                        (index) => DropdownMenuItem(
-                                          value: index + 1,
-                                          child: Text("${index + 2} Sócios"),
+                                    child: DropdownButtonFormField<String>(
+                                      value: tipoDocControllers[index],
+                                      items: const [
+                                        DropdownMenuItem(
+                                          value: "Identidade",
+                                          child: Text("Carteira de Identidade"),
                                         ),
-                                      ),
-                                      onChanged: (novoNumero) {
-                                        if (novoNumero != null) {
-                                          _atualizarNumeroDeSocios(novoNumero);
-                                          setState(() {
-                                            exibirFormulario = true;
-                                          });
+                                        DropdownMenuItem(
+                                          value: "funcional",
+                                          child: Text("Identidade Funcional"),
+                                        ),
+                                        DropdownMenuItem(
+                                          value: "CNH",
+                                          child: Text(
+                                              "Carteira de Motorista (CNH)"),
+                                        ),
+                                        DropdownMenuItem(
+                                          value: "Passaporte",
+                                          child: Text("Passaporte"),
+                                        ),
+                                      ],
+                                      onChanged: (String? newValue) {
+                                        if (newValue != null) {
+                                          setState(
+                                            () {
+                                              tipoDocControllers[index] =
+                                                  newValue;
+                                            },
+                                          );
                                         }
                                       },
                                       decoration: InputDecoration(
@@ -2357,87 +2348,85 @@ class _EmitirContratosState extends State<EmitirContratos> {
                                 ),
                               ],
                             ),
-
-                            const SizedBox(height: 5),
-                            const Divider(thickness: 1, color: Colors.grey),
-                            const SizedBox(height: 15),
-
-                            Row(
-                              children: [
-                                // atividade economica
-                                SizedBox(
-                                  width: 500,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(bottom: 15),
-                                    child: TextFormField(
-                                      decoration:
-                                          textFormField("Atividade Economica"),
-                                      keyboardType: TextInputType.number,
-                                      controller: _cpfController,
-                                      validator: (value) {
-                                        if (value == null || value.isEmpty) {
-                                          return "Campo obrigatório.";
-                                        }
-                                        return null;
-                                      },
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.digitsOnly,
-                                        CpfInputFormatter(),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 25),
-                                SizedBox(
-                                  width: 250,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(bottom: 15),
-                                    child: TextFormField(
-                                      decoration:
-                                          textFormField("Município e Estado"),
-                                      keyboardType: TextInputType.number,
-                                      controller: _cpfController,
-                                      validator: (value) {
-                                        if (value == null || value.isEmpty) {
-                                          return "Campo obrigatório.";
-                                        }
-                                        return null;
-                                      },
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.digitsOnly,
-                                        CpfInputFormatter(),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 25),
-                                SizedBox(
-                                  width: 200,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(bottom: 15),
-                                    child: TextFormField(
-                                      decoration: textFormField("CEP"),
-                                      keyboardType: TextInputType.number,
-                                      controller: _cpfController,
-                                      validator: (value) {
-                                        if (value == null || value.isEmpty) {
-                                          return "Campo obrigatório.";
-                                        }
-                                        return null;
-                                      },
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.digitsOnly,
-                                        CpfInputFormatter(),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
                           ],
                         ),
                       ),
                     ),
+                  ),
+
+                  const SizedBox(height: 5),
+                  const Divider(thickness: 1, color: Colors.grey),
+                  const SizedBox(height: 15),
+
+                  Row(
+                    children: [
+                      // atividade economica
+                      SizedBox(
+                        width: 500,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 15),
+                          child: TextFormField(
+                            decoration: textFormField("Atividade Economica"),
+                            keyboardType: TextInputType.number,
+                            controller: _cpfController,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return "Campo obrigatório.";
+                              }
+                              return null;
+                            },
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              CpfInputFormatter(),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 25),
+                      SizedBox(
+                        width: 250,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 15),
+                          child: TextFormField(
+                            decoration: textFormField("Município e Estado"),
+                            keyboardType: TextInputType.number,
+                            controller: _cpfController,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return "Campo obrigatório.";
+                              }
+                              return null;
+                            },
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              CpfInputFormatter(),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 25),
+                      SizedBox(
+                        width: 200,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 15),
+                          child: TextFormField(
+                            decoration: textFormField("CEP"),
+                            keyboardType: TextInputType.number,
+                            controller: _cpfController,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return "Campo obrigatório.";
+                              }
+                              return null;
+                            },
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              CpfInputFormatter(),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
