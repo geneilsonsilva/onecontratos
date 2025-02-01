@@ -1,12 +1,16 @@
+import 'dart:async';
+
 import 'package:brasil_fields/brasil_fields.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onecontratos/pages/Home/home.dart';
 import 'package:onecontratos/pages/Utils/textformfield.dart';
+import 'package:onecontratos/pages/services/controller/cep_controller.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:provider/provider.dart';
 
 class EmitirContratos extends StatefulWidget {
   const EmitirContratos({super.key});
@@ -21,6 +25,7 @@ class _EmitirContratosState extends State<EmitirContratos> {
   int indexAtual = 0;
   int campoAtual = 0;
   bool exibirFormulario = false;
+  final _cepController = CepController();
 
   final TextEditingController _sexoController = TextEditingController();
   final TextEditingController _nomeController = TextEditingController();
@@ -28,20 +33,22 @@ class _EmitirContratosState extends State<EmitirContratos> {
       TextEditingController();
   final TextEditingController _nascimentoController = TextEditingController();
   final TextEditingController _rgController = TextEditingController();
-
   final TextEditingController _profissaoController = TextEditingController();
   final TextEditingController _numeroDocController = TextEditingController();
   final TextEditingController _cpfController = TextEditingController();
-  final TextEditingController _ruaController = TextEditingController();
-  final TextEditingController _NuReidenciaController = TextEditingController();
-  final TextEditingController _bairroController = TextEditingController();
-  final TextEditingController _estadoController = TextEditingController();
-  final TextEditingController _cepController = TextEditingController();
+
   final TextEditingController _atividadeEconomicaController =
       TextEditingController();
-  final TextEditingController _municipioEstadoController =
-      TextEditingController();
 
+  final TextEditingController _municipioController = TextEditingController();
+  final TextEditingController _ruaController = TextEditingController();
+  final TextEditingController _nuReidenciaController = TextEditingController();
+  final TextEditingController _bairroController = TextEditingController();
+  final TextEditingController _estadoController = TextEditingController();
+
+  final TextEditingController _ufController = TextEditingController();
+
+  // |||||||||||||||||||||| FORMULARIO SOCIOS ||||||||||||||||||||||
   List<TextEditingController> nomeControllers = [];
   List<TextEditingController> nacionalidadeControllers = [];
   List<TextEditingController> nascimentoControllers = [];
@@ -56,6 +63,10 @@ class _EmitirContratosState extends State<EmitirContratos> {
   String? tipoPessoa;
   String? tipoSexo;
   String? tipoDocumento;
+
+  String removerFormatacaoCep(String cep) {
+    return cep.replaceAll(RegExp(r'[^0-9]'), '');
+  }
 
   void _estadoCivil(String? value) {
     setState(() {
@@ -196,10 +207,10 @@ class _EmitirContratosState extends State<EmitirContratos> {
                       fontWeight: pw.FontWeight.bold,
                     ),
                   ),
-                  const pw.TextSpan(
+                  pw.TextSpan(
                     text:
-                        ', residente e domiciliado na Rua Marechal Hermes da Fonseca, n. 137, Juçara, Município de Imperatriz, Estado do Maranhão, CEP 65.900-575;',
-                    style: pw.TextStyle(fontSize: 12),
+                        ', residente e domiciliado na Rua ${_cepController.ruaController.text}, n. ${_cepController.numeroController.text}, ${_cepController.bairroController.text}, Município de ${_cepController.municipioController.text}, Estado do ${_cepController.estadoController.text}, CEP ${_cepController.cepController.text};',
+                    style: const pw.TextStyle(fontSize: 12),
                   ),
                 ],
               ),
@@ -1652,13 +1663,13 @@ class _EmitirContratosState extends State<EmitirContratos> {
                       ),
                       const SizedBox(width: 25),
                       Expanded(
-                        flex: 2,
+                        flex: 1,
                         child: Padding(
                           padding: const EdgeInsets.only(bottom: 15),
                           child: TextFormField(
-                            decoration: textFormField("Rua"),
-                            keyboardType: TextInputType.text,
-                            controller: _cpfController,
+                            decoration: textFormField("CEP"),
+                            keyboardType: TextInputType.number,
+                            controller: _cepController.cepController,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return "Campo obrigatório.";
@@ -1667,8 +1678,36 @@ class _EmitirContratosState extends State<EmitirContratos> {
                             },
                             inputFormatters: [
                               FilteringTextInputFormatter.digitsOnly,
-                              CpfInputFormatter(),
+                              CepInputFormatter()
                             ],
+                            onChanged: (value) {
+                              // if (value.length == 8) {
+                              //   _cepController.buscarCep();
+                              // }
+                              final cepLimpo = removerFormatacaoCep(value);
+                              if (cepLimpo.length == 8) {
+                                _cepController
+                                    .buscarCep(cepLimpo); // Envia sem "." e "-"
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 25),
+                      Expanded(
+                        flex: 2,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 15),
+                          child: TextFormField(
+                            decoration: textFormField("Rua"),
+                            keyboardType: TextInputType.text,
+                            controller: _cepController.ruaController,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return "Campo obrigatório.";
+                              }
+                              return null;
+                            },
                           ),
                         ),
                       ),
@@ -1680,17 +1719,13 @@ class _EmitirContratosState extends State<EmitirContratos> {
                           child: TextFormField(
                             decoration: textFormField("N°"),
                             keyboardType: TextInputType.text,
-                            controller: _cpfController,
+                            controller: _cepController.numeroController,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return "Campo obrigatório.";
                               }
                               return null;
                             },
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              CpfInputFormatter(),
-                            ],
                           ),
                         ),
                       ),
@@ -1707,17 +1742,31 @@ class _EmitirContratosState extends State<EmitirContratos> {
                           child: TextFormField(
                             decoration: textFormField("Bairro"),
                             keyboardType: TextInputType.text,
-                            controller: _cpfController,
+                            controller: _cepController.bairroController,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return "Campo obrigatório.";
                               }
                               return null;
                             },
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              CpfInputFormatter(),
-                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 25),
+                      SizedBox(
+                        width: 250,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 15),
+                          child: TextFormField(
+                            decoration: textFormField("Municipio"),
+                            keyboardType: TextInputType.text,
+                            controller: _cepController.municipioController,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return "Campo obrigatório.";
+                              }
+                              return null;
+                            },
                           ),
                         ),
                       ),
@@ -1729,39 +1778,13 @@ class _EmitirContratosState extends State<EmitirContratos> {
                           child: TextFormField(
                             decoration: textFormField("Estado"),
                             keyboardType: TextInputType.text,
-                            controller: _cpfController,
+                            controller: _cepController.estadoController,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return "Campo obrigatório.";
                               }
                               return null;
                             },
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              CpfInputFormatter(),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 25),
-                      SizedBox(
-                        width: 200,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 15),
-                          child: TextFormField(
-                            decoration: textFormField("CEP"),
-                            keyboardType: TextInputType.number,
-                            controller: _cpfController,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return "Campo obrigatório.";
-                              }
-                              return null;
-                            },
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              CpfInputFormatter(),
-                            ],
                           ),
                         ),
                       ),
