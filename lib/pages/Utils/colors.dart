@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  static const Color primaryColor = Color(0xFFff5101);
+  static const Color primaryColor = Color(0xFF002766);
   static const Color secondaryColor = Colors.orange;
   static const Color backgroundColor = Color.fromARGB(255, 224, 213, 213);
   static const Color accentColor = Color(0xFF000000);
@@ -11,6 +11,7 @@ class AppColors {
   static const Color cardDash = Color(0xFFF8F8F8);
   static const Color menu = Color(0xFF555555);
   static const Color decoretionMenu = Color(0xFFd7d7d7);
+  static const Color doberInput = Color(0xFFb8c6d9);
 
   static const Color errorColor = Colors.red;
   static const Color warningColor = Colors.yellow;

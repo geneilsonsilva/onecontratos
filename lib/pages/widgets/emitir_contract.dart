@@ -1,16 +1,21 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:brasil_fields/brasil_fields.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onecontratos/pages/Home/home.dart';
+import 'package:onecontratos/pages/Utils/colors.dart';
+import 'package:onecontratos/pages/Utils/dropdown.dart';
+import 'package:onecontratos/pages/Utils/text.dart';
 import 'package:onecontratos/pages/Utils/textformfield.dart';
 import 'package:onecontratos/pages/services/controller/cep_controller.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
+import 'package:http/http.dart' as http;
 
 class EmitirContratos extends StatefulWidget {
   const EmitirContratos({super.key});
@@ -27,26 +32,85 @@ class _EmitirContratosState extends State<EmitirContratos> {
   bool exibirFormulario = false;
   final _cepController = CepController();
 
-  final TextEditingController _sexoController = TextEditingController();
+  // Listas de controladores para cada sócio
+  List<TextEditingController> cepControllers = [];
+  List<TextEditingController> ruaControllers = [];
+  List<TextEditingController> numeroControllers = [];
+  List<TextEditingController> bairroControllers = [];
+  List<TextEditingController> municipioControllers = [];
+  List<TextEditingController> estadoControllers = [];
+  List<TextEditingController> ufControllers = [];
+
+  @override
+  void initState() {
+    super.initState();
+
+    if (numeroDeSocios != null) {
+      // 🔥 Garante que não seja nulo antes de usar "!"
+      for (int i = 0; i < numeroDeSocios!; i++) {
+        cepControllers.add(TextEditingController());
+        ruaControllers.add(TextEditingController());
+        numeroControllers.add(TextEditingController());
+        bairroControllers.add(TextEditingController());
+        municipioControllers.add(TextEditingController());
+        estadoControllers.add(TextEditingController());
+        ufControllers.add(TextEditingController());
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    for (var controller in [
+      ...cepControllers,
+      ...ruaControllers,
+      ...numeroControllers,
+      ...bairroControllers,
+      ...municipioControllers,
+      ...estadoControllers,
+      ...ufControllers,
+    ]) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  // String removerFormatacaoCep(String cep) {
+  //   return cep.replaceAll(RegExp(r'[^0-9]'), '');
+  // }
+
+  Future<void> buscarCep(int index) async {
+    String cep = removerFormatacaoCep(cepControllers[index].text);
+    if (cep.length != 8) return;
+
+    final url = Uri.parse('https://viacep.com.br/ws/$cep/json/');
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+
+      setState(() {
+        ruaControllers[index].text = data['logradouro'] ?? '';
+        bairroControllers[index].text = data['bairro'] ?? '';
+        numeroControllers[index].text = data['unidade'] ?? '';
+        municipioControllers[index].text = data['localidade'] ?? '';
+        estadoControllers[index].text = data['estado'] ?? '';
+        ufControllers[index].text = data['estado'] ?? '';
+      });
+    }
+  }
+
   final TextEditingController _nomeController = TextEditingController();
   final TextEditingController _nacionalidadeController =
       TextEditingController();
   final TextEditingController _nascimentoController = TextEditingController();
-  final TextEditingController _rgController = TextEditingController();
   final TextEditingController _profissaoController = TextEditingController();
   final TextEditingController _numeroDocController = TextEditingController();
   final TextEditingController _cpfController = TextEditingController();
+  final TextEditingController _naturalController = TextEditingController();
 
   final TextEditingController _atividadeEconomicaController =
       TextEditingController();
-
-  final TextEditingController _municipioController = TextEditingController();
-  final TextEditingController _ruaController = TextEditingController();
-  final TextEditingController _nuReidenciaController = TextEditingController();
-  final TextEditingController _bairroController = TextEditingController();
-  final TextEditingController _estadoController = TextEditingController();
-
-  final TextEditingController _ufController = TextEditingController();
 
   // |||||||||||||||||||||| FORMULARIO SOCIOS ||||||||||||||||||||||
   List<TextEditingController> nomeControllers = [];
@@ -54,6 +118,8 @@ class _EmitirContratosState extends State<EmitirContratos> {
   List<TextEditingController> nascimentoControllers = [];
   List<TextEditingController> rgControllers = [];
   List<TextEditingController> cpfControllers = [];
+  List<TextEditingController> numeroDocumentoControllers = [];
+  List<TextEditingController> profissaoControllers = [];
   List<String?> sexoControllers = [];
   List<String?> naturezaSocioControllers = [];
   List<String?> estadoCivilSocioControllers = [];
@@ -64,8 +130,16 @@ class _EmitirContratosState extends State<EmitirContratos> {
   String? tipoSexo;
   String? tipoDocumento;
 
+  String tipoCliente = 'PF';
+
   String removerFormatacaoCep(String cep) {
     return cep.replaceAll(RegExp(r'[^0-9]'), '');
+  }
+
+  void _onSexoChanged(String? value) {
+    setState(() {
+      tipoSexo = value;
+    });
   }
 
   void _estadoCivil(String? value) {
@@ -90,6 +164,7 @@ class _EmitirContratosState extends State<EmitirContratos> {
     setState(() {
       tipoDocumento = value;
     });
+    if (tipoDocumento == '') {}
   }
 
   String _getEstadoCivilDescricao() {
@@ -133,14 +208,295 @@ class _EmitirContratosState extends State<EmitirContratos> {
           List.generate(quantidade, (index) => TextEditingController());
       cpfControllers =
           List.generate(quantidade, (index) => TextEditingController());
+      numeroDocumentoControllers =
+          List.generate(quantidade, (index) => TextEditingController());
+      profissaoControllers =
+          List.generate(quantidade, (index) => TextEditingController());
       sexoControllers = List.generate(quantidade, (index) => null);
+
       List.generate(quantidade, (index) => TextEditingController());
       naturezaSocioControllers = List.generate(quantidade, (index) => null);
       List.generate(quantidade, (index) => TextEditingController());
       estadoCivilSocioControllers = List.generate(quantidade, (index) => null);
       List.generate(quantidade, (index) => TextEditingController());
       tipoDocControllers = List.generate(quantidade, (index) => null);
+
+      cepControllers =
+          List.generate(quantidade, (_) => TextEditingController());
+      ruaControllers =
+          List.generate(quantidade, (_) => TextEditingController());
+      numeroControllers =
+          List.generate(quantidade, (_) => TextEditingController());
+      bairroControllers =
+          List.generate(quantidade, (_) => TextEditingController());
+      municipioControllers =
+          List.generate(quantidade, (_) => TextEditingController());
+      estadoControllers =
+          List.generate(quantidade, (_) => TextEditingController());
     });
+  }
+
+  List<Widget> _buildCamposPJ() {
+    return [
+      _buildTextFieldCNPJ(''),
+      // _buildTextField('Exemplo'),
+      // _buildTextField('(12) 93456-7891'),
+      // _buildTextField('exemplo@exemplo.com'),
+      // _buildTextField('R\$ 0,00'),
+    ];
+  }
+
+  List<Widget> _buildCamposPF() {
+    return [
+      _buildTextFieldCPF(''),
+      // _buildTextField('Exemplo'),
+      // _buildTextField('(12) 93456-7891'),
+      // _buildTextField('exemplo@exemplo.com'),
+      // _buildTextField('R\$ 0,00'),
+      // _buildTextField('dd/mm/aaaa', isDate: true),
+    ];
+  }
+
+  Widget _buildTextFieldCPF(String hint, {bool isDate = false}) {
+    return Row(
+      children: [
+        Expanded(
+          flex: 1,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                customText(
+                  'Nome completo *',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+                const SizedBox(
+                  height: 5,
+                ),
+                TextFormField(
+                  decoration: textFormField("Exemplo"),
+                  keyboardType: TextInputType.text,
+                  controller: _nomeController,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return "Campo obrigatório.";
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 10),
+                customText(
+                  'Nacionalidade *',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+                const SizedBox(
+                  height: 5,
+                ),
+                TextFormField(
+                  decoration: textFormField("brasileiro"),
+                  keyboardType: TextInputType.text,
+                  controller: _nacionalidadeController,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return "Campo obrigatório.";
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 10),
+                customText(
+                  'Sexo *',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+                const SizedBox(
+                  height: 5,
+                ),
+                CustomDropdown(
+                  value: tipoSexo,
+                  items: const [
+                    DropdownMenuItem(
+                        value: "masculino", child: Text("Masculino")),
+                    DropdownMenuItem(
+                        value: "feminino", child: Text("Feminino")),
+                  ],
+                  onChanged: _onSexoChanged,
+                  hintText: "Selecione o Sexo",
+                  fillColor: const Color(0xFFF1F4FF),
+                  borderColor: Colors.grey,
+                  focusedBorderColor: Colors.blue,
+                  errorBorderColor: Colors.red,
+                  borderRadius: 8.0,
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(
+          width: 25,
+        ),
+        Expanded(
+          flex: 1,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                customText(
+                  'CPF *',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+                const SizedBox(
+                  height: 5,
+                ),
+                TextFormField(
+                  decoration: textFormField("123.456.789-10"),
+                  keyboardType: TextInputType.text,
+                  controller: _cpfController,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return "Campo obrigatório.";
+                    }
+                    return null;
+                  },
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    CpfInputFormatter(),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                customText(
+                  'Naturalidade *',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+                const SizedBox(
+                  height: 5,
+                ),
+                TextFormField(
+                  decoration: textFormField("Digite o CEP"),
+                  keyboardType: TextInputType.text,
+                  controller: _cepController.cepController,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return "Campo obrigatório.";
+                    }
+                    return null;
+                  },
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    CepInputFormatter(),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                customText(
+                  'Data nascimento *',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+                const SizedBox(
+                  height: 5,
+                ),
+                TextFormField(
+                  decoration: textFormField("01/01/2000"),
+                  keyboardType: TextInputType.text,
+                  controller: _nascimentoController,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return "Campo obrigatório.";
+                    }
+                    return null;
+                  },
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    DataInputFormatter(),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTextFieldCNPJ(String hint, {bool isDate = false}) {
+    return Row(
+      children: [
+        Expanded(
+          flex: 1,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                customText(
+                  'Nome fantasia *',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+                const SizedBox(
+                  height: 5,
+                ),
+                TextFormField(
+                  decoration: textFormField("Exemplo"),
+                  keyboardType: TextInputType.text,
+                  controller: _nomeController,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return "Campo obrigatório.";
+                    }
+                    return null;
+                  },
+                ),
+                //
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(
+          width: 25,
+        ),
+        Expanded(
+          flex: 1,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                customText(
+                  'CNPJ *',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+                const SizedBox(
+                  height: 5,
+                ),
+                TextFormField(
+                  decoration: textFormField("12.345.678/0001-91"),
+                  keyboardType: TextInputType.text,
+                  controller: _cpfController,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return "Campo obrigatório.";
+                    }
+                    return null;
+                  },
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    CnpjInputFormatter(),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   void _generatePdf() async {
@@ -176,7 +532,7 @@ class _EmitirContratosState extends State<EmitirContratos> {
               text: pw.TextSpan(
                 children: [
                   pw.TextSpan(
-                    text: _nomeController.text.toUpperCase().trim(),
+                    text: '${_nomeController.text.toUpperCase().trim()}, ',
                     // text: '${socios[indexAtual]["nome"]}'.toUpperCase(),
                     style: pw.TextStyle(
                       fontSize: 12,
@@ -185,11 +541,11 @@ class _EmitirContratosState extends State<EmitirContratos> {
                   ),
                   pw.TextSpan(
                     text:
-                        ', ${_nacionalidadeController.text.trim()}, ${_getEstadoCivilDescricao()}, natural de Imperatriz - MA, nascido em ${_nascimentoController.text.trim()}, portador da Cédula de Identidade',
+                        '${_nacionalidadeController.text.trim()}, ${_getEstadoCivilDescricao()}, ${_profissaoController.text.trim()}, natural de ${_naturalController.text.trim()}, nascido em ${_nascimentoController.text.trim()}, portador da Cédula de Identidade ',
                     style: const pw.TextStyle(fontSize: 12),
                   ),
                   pw.TextSpan(
-                    text: 'RG sob o n.º ${_rgController.text.trim()}',
+                    text: 'RG sob o n.º ${_numeroDocController.text.trim()}',
                     style: pw.TextStyle(
                       fontSize: 12,
                       fontWeight: pw.FontWeight.bold,
@@ -200,8 +556,7 @@ class _EmitirContratosState extends State<EmitirContratos> {
                     style: pw.TextStyle(fontSize: 12),
                   ),
                   pw.TextSpan(
-                    text:
-                        ' CPF. Sob o n.o ${socios.isNotEmpty ? socios[indexAtual]["cpf"] : ""}',
+                    text: ' CPF. Sob o n.o ${_cpfController.text.trim()}',
                     style: pw.TextStyle(
                       fontSize: 12,
                       fontWeight: pw.FontWeight.bold,
@@ -1154,13 +1509,14 @@ class _EmitirContratosState extends State<EmitirContratos> {
                   fontWeight: pw.FontWeight.bold,
                 ),
               ),
-              const pw.TextSpan(
+              pw.TextSpan(
                 text:
-                    ', brasileiro, natural de Imperatriz - MA, solteiro, nascido em 20/11/1998, empresário, portador da Carteira Nacional de Habilitação CNH',
-                style: pw.TextStyle(fontSize: 12),
+                    ', ${nacionalidadeControllers[index].text.trim()}, natural de ${nacionalidadeControllers[index].text.trim()}, ${estadoCivilSocioControllers[index]}, nascido em ${nascimentoControllers[index].text.trim()}, empresário, portador da Carteira Nacional de Habilitação CNH',
+                style: const pw.TextStyle(fontSize: 12),
               ),
               pw.TextSpan(
-                text: ' sob n.o 06803018837 DETRAN MA',
+                text:
+                    ' sob n.o ${numeroDocumentoControllers[index].text.trim()}',
                 style: pw.TextStyle(
                   fontSize: 12,
                   fontWeight: pw.FontWeight.bold,
@@ -1171,7 +1527,7 @@ class _EmitirContratosState extends State<EmitirContratos> {
                 style: pw.TextStyle(fontSize: 12),
               ),
               pw.TextSpan(
-                text: ' CPF. Sob o n.o 071.232.353-80, ',
+                text: ' CPF. Sob o n.o ${cpfControllers[index].text.trim()}, ',
                 style: pw.TextStyle(
                   fontSize: 12,
                   fontWeight: pw.FontWeight.bold,
@@ -1196,7 +1552,7 @@ class _EmitirContratosState extends State<EmitirContratos> {
     return Scaffold(
       backgroundColor: const Color(0xFFF1F3F6),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFff5101),
+        backgroundColor: AppColors.primaryColor,
         foregroundColor: Colors.white,
         leading: IconButton(
           onPressed: () {
@@ -1246,8 +1602,8 @@ class _EmitirContratosState extends State<EmitirContratos> {
                           items: List.generate(
                             3,
                             (index) => DropdownMenuItem(
-                              value: index + 1,
-                              child: Text("${index + 2} Sócios"),
+                              value: index,
+                              child: Text("${index + 1} Sócios"),
                             ),
                           ),
                           onChanged: (novoNumero) {
@@ -1298,1159 +1654,1346 @@ class _EmitirContratosState extends State<EmitirContratos> {
                     ),
                   ),
 
-                  // natureza do sócio
-
-                  Row(
+                  Column(
                     children: [
                       if (exibirFormulario)
-                        Text(
-                          "Sócio 1",
-                          style: GoogleFonts.poppins(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black,
-                          ),
-                        ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      SizedBox(
-                        width: 300,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 15),
-                          child: DropdownButtonFormField<String>(
-                            value: tipoPessoa,
-                            items: const [
-                              DropdownMenuItem(
-                                value: "fisica",
-                                child: Text("Pessoa Física"),
-                              ),
-                              DropdownMenuItem(
-                                value: "juridica",
-                                child: Text("Pessoa Jurídica"),
-                              ),
-                            ],
-                            onChanged: _pessoa,
-                            decoration: InputDecoration(
-                              label: const Text("Qual é a natureza"),
-                              fillColor:
-                                  const Color(0xFFF1F4FF).withOpacity(0.9),
-                              filled: true,
-                              labelStyle: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 16,
-                                  color: const Color(0xFF626262)),
-                              isDense: true,
-                              border: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                    color: Color(0xFF262c40), width: 2.0),
-                                borderRadius: BorderRadius.circular(11),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                    color: Color(0xFF262c40), width: 2.0),
-                                borderRadius: BorderRadius.circular(11),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                    color: Color(0xFF262c40), width: 2.0),
-                                borderRadius: BorderRadius.circular(11),
-                              ),
-                              focusedErrorBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                    color: Color(0xFF262c40), width: 2.0),
-                                borderRadius: BorderRadius.circular(11),
-                              ),
-                              errorBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                    color: Color(0xFF262c40), width: 2.0),
-                                borderRadius: BorderRadius.circular(11),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // sexo
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 1,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 15),
-                          child: DropdownButtonFormField<String>(
-                            value: tipoSexo,
-                            items: const [
-                              DropdownMenuItem(
-                                value: "masculino",
-                                child: Text("Masculino"),
-                              ),
-                              DropdownMenuItem(
-                                value: "feminino",
-                                child: Text("Feminito"),
-                              ),
-                            ],
-                            onChanged: _sexo,
-                            decoration: InputDecoration(
-                              label: const Text("Sexo"),
-                              fillColor:
-                                  const Color(0xFFF1F4FF).withOpacity(0.9),
-                              filled: true,
-                              labelStyle: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 16,
-                                  color: const Color(0xFF626262)),
-                              isDense: true,
-                              border: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                    color: Color(0xFF262c40), width: 2.0),
-                                borderRadius: BorderRadius.circular(11),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                    color: Color(0xFF262c40), width: 2.0),
-                                borderRadius: BorderRadius.circular(11),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                    color: Color(0xFF262c40), width: 2.0),
-                                borderRadius: BorderRadius.circular(11),
-                              ),
-                              focusedErrorBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                    color: Color(0xFF262c40), width: 2.0),
-                                borderRadius: BorderRadius.circular(11),
-                              ),
-                              errorBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                    color: Color(0xFF262c40), width: 2.0),
-                                borderRadius: BorderRadius.circular(11),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 25),
-                      Expanded(
-                        flex: 1,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 15),
-                          child: TextFormField(
-                            decoration: textFormField("Nome"),
-                            keyboardType: TextInputType.text,
-                            controller: _nomeController,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return "Campo obrigatório.";
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 25),
-                      // estado civil
-                      Expanded(
-                        flex: 1,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 15),
-                          child: DropdownButtonFormField<String>(
-                            value: tipoEstadoCivil,
-                            items: const [
-                              DropdownMenuItem(
-                                  value: "solteiro", child: Text("Solteiro")),
-                              DropdownMenuItem(
-                                  value: "casado", child: Text("Casado")),
-                              DropdownMenuItem(
-                                  value: "divorciado",
-                                  child: Text("Divorciado")),
-                              DropdownMenuItem(
-                                  value: "viuvo", child: Text("Viúvo")),
-                            ],
-                            onChanged: _estadoCivil,
-                            decoration: InputDecoration(
-                              label: const Text("Estado Cívil"),
-                              fillColor:
-                                  const Color(0xFFF1F4FF).withOpacity(0.9),
-                              filled: true,
-                              labelStyle: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 16,
-                                  color: const Color(0xFF626262)),
-                              isDense: true,
-                              border: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                    color: Color(0xFF262c40), width: 2.0),
-                                borderRadius: BorderRadius.circular(11),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                    color: Color(0xFF262c40), width: 2.0),
-                                borderRadius: BorderRadius.circular(11),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                    color: Color(0xFF262c40), width: 2.0),
-                                borderRadius: BorderRadius.circular(11),
-                              ),
-                              focusedErrorBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                    color: Color(0xFF262c40), width: 2.0),
-                                borderRadius: BorderRadius.circular(11),
-                              ),
-                              errorBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                    color: Color(0xFF262c40), width: 2.0),
-                                borderRadius: BorderRadius.circular(11),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 25),
-                      Expanded(
-                        flex: 1,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 15),
-                          child: TextFormField(
-                            decoration: textFormField("Nacionalidade"),
-                            keyboardType: TextInputType.text,
-                            controller: _nacionalidadeController,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return "Campo obrigatório.";
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 25),
-                      Expanded(
-                        flex: 1,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 15),
-                          child: TextFormField(
-                            decoration: textFormField("Profissão"),
-                            keyboardType: TextInputType.text,
-                            controller: _cpfController,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return "Campo obrigatório.";
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // Documento de identificação:
-                  Row(
-                    children: [
-                      // Documento de identificação:
-                      Expanded(
-                        flex: 2,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 15),
-                          child: DropdownButtonFormField<String>(
-                            value: tipoDocumento,
-                            items: const [
-                              DropdownMenuItem(
-                                value: "Identidade",
-                                child: Text("Carteira de Identidade"),
-                              ),
-                              DropdownMenuItem(
-                                value: "funcional",
-                                child: Text("Identidade Funcional"),
-                              ),
-                              DropdownMenuItem(
-                                value: "CNH",
-                                child: Text("Carteira de Motorista (CNH)"),
-                              ),
-                              DropdownMenuItem(
-                                value: "Passaporte",
-                                child: Text("Passaporte"),
-                              ),
-                            ],
-                            onChanged: _documento,
-                            decoration: InputDecoration(
-                              label: const Text("Documento de Identificação"),
-                              fillColor:
-                                  const Color(0xFFF1F4FF).withOpacity(0.9),
-                              filled: true,
-                              labelStyle: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 16,
-                                  color: const Color(0xFF626262)),
-                              isDense: true,
-                              border: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                    color: Color(0xFF262c40), width: 2.0),
-                                borderRadius: BorderRadius.circular(11),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                    color: Color(0xFF262c40), width: 2.0),
-                                borderRadius: BorderRadius.circular(11),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                    color: Color(0xFF262c40), width: 2.0),
-                                borderRadius: BorderRadius.circular(11),
-                              ),
-                              focusedErrorBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                    color: Color(0xFF262c40), width: 2.0),
-                                borderRadius: BorderRadius.circular(11),
-                              ),
-                              errorBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                    color: Color(0xFF262c40), width: 2.0),
-                                borderRadius: BorderRadius.circular(11),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 25),
-                      Expanded(
-                        flex: 1,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 15),
-                          child: TextFormField(
-                            decoration: textFormField("Número Documento"),
-                            keyboardType: TextInputType.name,
-                            controller: _cpfController,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return "Campo obrigatório.";
-                              }
-                              return null;
-                            },
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              CpfInputFormatter(),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 25),
-                      Expanded(
-                        flex: 2,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 15),
-                          child: TextFormField(
-                            decoration: textFormField("CPF"),
-                            keyboardType: TextInputType.number,
-                            controller: _cpfController,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return "Campo obrigatório.";
-                              }
-                              return null;
-                            },
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              CpfInputFormatter(),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 25),
-                      Expanded(
-                        flex: 1,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 15),
-                          child: TextFormField(
-                            decoration: textFormField("CEP"),
-                            keyboardType: TextInputType.number,
-                            controller: _cepController.cepController,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return "Campo obrigatório.";
-                              }
-                              return null;
-                            },
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              CepInputFormatter()
-                            ],
-                            onChanged: (value) {
-                              // if (value.length == 8) {
-                              //   _cepController.buscarCep();
-                              // }
-                              final cepLimpo = removerFormatacaoCep(value);
-                              if (cepLimpo.length == 8) {
-                                _cepController
-                                    .buscarCep(cepLimpo); // Envia sem "." e "-"
-                              }
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 25),
-                      Expanded(
-                        flex: 2,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 15),
-                          child: TextFormField(
-                            decoration: textFormField("Rua"),
-                            keyboardType: TextInputType.text,
-                            controller: _cepController.ruaController,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return "Campo obrigatório.";
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 25),
-                      Expanded(
-                        flex: 1,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 15),
-                          child: TextFormField(
-                            decoration: textFormField("N°"),
-                            keyboardType: TextInputType.text,
-                            controller: _cepController.numeroController,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return "Campo obrigatório.";
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  Row(
-                    children: [
-                      // Documento de identificação:
-                      SizedBox(
-                        width: 200,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 15),
-                          child: TextFormField(
-                            decoration: textFormField("Bairro"),
-                            keyboardType: TextInputType.text,
-                            controller: _cepController.bairroController,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return "Campo obrigatório.";
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 25),
-                      SizedBox(
-                        width: 250,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 15),
-                          child: TextFormField(
-                            decoration: textFormField("Municipio"),
-                            keyboardType: TextInputType.text,
-                            controller: _cepController.municipioController,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return "Campo obrigatório.";
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 25),
-                      SizedBox(
-                        width: 250,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 15),
-                          child: TextFormField(
-                            decoration: textFormField("Estado"),
-                            keyboardType: TextInputType.text,
-                            controller: _cepController.estadoController,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return "Campo obrigatório.";
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-                  // |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-                  // |||||||||||||||||||||||||||||||||||| FORMULARIO SOCIOS ||||||||||||||||||||||||||||||||||||||||
-                  // |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-                  // |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-                  Column(
-                    children: List.generate(
-                      numeroDeSocios ??
-                          0, // Gera a quantidade de campos conforme o número de sócios
-                      (index) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: Column(
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment
+                              .start, // Alinha o conteúdo ao topo
                           children: [
-                            const SizedBox(height: 5),
-                            const Divider(thickness: 1, color: Colors.grey),
-                            const SizedBox(height: 15),
-                            Row(
-                              children: [
-                                Text(
-                                  "Sócio ${index + 2}",
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.black,
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                  left: 16,
+                                  right: 32), // Ajuste do padding lateral
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment
+                                    .start, // Alinha o texto à esquerda
+                                children: [
+                                  Text(
+                                    'Dados do sócio',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    'Preencha as informações',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-
-                            const SizedBox(height: 5),
-
-                            Row(
-                              children: [
-                                SizedBox(
-                                  width: 300,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(bottom: 15),
-                                    child: DropdownButtonFormField<String>(
-                                      value: naturezaSocioControllers[index],
-                                      items: const [
-                                        DropdownMenuItem(
-                                          value: "fisica",
-                                          child: Text("Pessoa Física"),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: "juridica",
-                                          child: Text("Pessoa Jurídica"),
-                                        ),
-                                      ],
-                                      onChanged: (String? newValue) {
-                                        if (newValue != null) {
-                                          setState(() {
-                                            naturezaSocioControllers[index] =
-                                                newValue;
-                                          });
-                                        }
-                                      },
-                                      decoration: InputDecoration(
-                                        label: const Text("Qual é a natureza"),
-                                        fillColor: const Color(0xFFF1F4FF)
-                                            .withOpacity(0.9),
-                                        filled: true,
-                                        labelStyle: GoogleFonts.poppins(
-                                            fontWeight: FontWeight.w500,
-                                            fontSize: 16,
-                                            color: const Color(0xFF626262)),
-                                        isDense: true,
-                                        border: OutlineInputBorder(
-                                          borderSide: const BorderSide(
-                                              color: Color(0xFF262c40),
-                                              width: 2.0),
-                                          borderRadius:
-                                              BorderRadius.circular(11),
-                                        ),
-                                        enabledBorder: OutlineInputBorder(
-                                          borderSide: const BorderSide(
-                                              color: Color(0xFF262c40),
-                                              width: 2.0),
-                                          borderRadius:
-                                              BorderRadius.circular(11),
-                                        ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderSide: const BorderSide(
-                                              color: Color(0xFF262c40),
-                                              width: 2.0),
-                                          borderRadius:
-                                              BorderRadius.circular(11),
-                                        ),
-                                        focusedErrorBorder: OutlineInputBorder(
-                                          borderSide: const BorderSide(
-                                              color: Color(0xFF262c40),
-                                              width: 2.0),
-                                          borderRadius:
-                                              BorderRadius.circular(11),
-                                        ),
-                                        errorBorder: OutlineInputBorder(
-                                          borderSide: const BorderSide(
-                                              color: Color(0xFF262c40),
-                                              width: 2.0),
-                                          borderRadius:
-                                              BorderRadius.circular(11),
+                            const SizedBox(
+                              width: 200,
+                            ),
+                            Expanded(
+                              flex: 2,
+                              child: Column(
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: RadioListTile<String>(
+                                          title: const Text('Pessoa Física PF'),
+                                          value: 'PF',
+                                          groupValue: tipoCliente,
+                                          onChanged: (value) {
+                                            setState(
+                                              () {
+                                                tipoCliente = value!;
+                                              },
+                                            );
+                                          },
                                         ),
                                       ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            // sexo
-                            Row(
-                              children: [
-                                Expanded(
-                                  flex: 1,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(bottom: 15),
-                                    child: DropdownButtonFormField<String>(
-                                      value: sexoControllers[index],
-                                      items: const [
-                                        DropdownMenuItem(
-                                          value: "masculino",
-                                          child: Text("Masculino"),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: "feminino",
-                                          child: Text("Feminino"),
-                                        ),
-                                      ],
-                                      onChanged: (String? newValue) {
-                                        if (newValue != null) {
-                                          setState(() {
-                                            sexoControllers[index] = newValue;
-                                          });
-                                        }
-                                      },
-                                      decoration: InputDecoration(
-                                        label: const Text("Sexo"),
-                                        fillColor: const Color(0xFFF1F4FF)
-                                            .withOpacity(0.9),
-                                        filled: true,
-                                        labelStyle: GoogleFonts.poppins(
-                                          fontWeight: FontWeight.w500,
-                                          fontSize: 16,
-                                          color: const Color(0xFF626262),
-                                        ),
-                                        isDense: true,
-                                        border: OutlineInputBorder(
-                                          borderSide: const BorderSide(
-                                              color: Color(0xFF262c40),
-                                              width: 2.0),
-                                          borderRadius:
-                                              BorderRadius.circular(11),
-                                        ),
-                                        enabledBorder: OutlineInputBorder(
-                                          borderSide: const BorderSide(
-                                              color: Color(0xFF262c40),
-                                              width: 2.0),
-                                          borderRadius:
-                                              BorderRadius.circular(11),
-                                        ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderSide: const BorderSide(
-                                              color: Color(0xFF262c40),
-                                              width: 2.0),
-                                          borderRadius:
-                                              BorderRadius.circular(11),
-                                        ),
-                                        focusedErrorBorder: OutlineInputBorder(
-                                          borderSide: const BorderSide(
-                                              color: Color(0xFF262c40),
-                                              width: 2.0),
-                                          borderRadius:
-                                              BorderRadius.circular(11),
-                                        ),
-                                        errorBorder: OutlineInputBorder(
-                                          borderSide: const BorderSide(
-                                              color: Color(0xFF262c40),
-                                              width: 2.0),
-                                          borderRadius:
-                                              BorderRadius.circular(11),
+                                      Expanded(
+                                        child: RadioListTile<String>(
+                                          title:
+                                              const Text('Pessoa Jurídica PJ'),
+                                          value: 'PJ',
+                                          groupValue: tipoCliente,
+                                          onChanged: (value) {
+                                            setState(() {
+                                              tipoCliente = value!;
+                                            });
+                                          },
                                         ),
                                       ),
+                                    ],
+                                  ),
+                                  const Divider(),
+                                  Form(
+                                    child: Column(
+                                      children: tipoCliente == 'PJ'
+                                          ? _buildCamposPJ()
+                                          : _buildCamposPF(),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 25),
-                                Expanded(
-                                  flex: 1,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(bottom: 15),
-                                    child: TextFormField(
-                                      decoration: textFormField("Nome"),
-                                      keyboardType: TextInputType.text,
-                                      controller: nomeControllers[index],
-                                      validator: (value) {
-                                        if (value == null || value.isEmpty) {
-                                          return "Campo obrigatório.";
-                                        }
-                                        return null;
-                                      },
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 25),
-                                // estado civil
-                                Expanded(
-                                  flex: 1,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(bottom: 15),
-                                    child: DropdownButtonFormField<String>(
-                                      value: estadoCivilSocioControllers[index],
-                                      items: const [
-                                        DropdownMenuItem(
-                                            value: "solteiro",
-                                            child: Text("Solteiro")),
-                                        DropdownMenuItem(
-                                            value: "casado",
-                                            child: Text("Casado")),
-                                        DropdownMenuItem(
-                                            value: "divorciado",
-                                            child: Text("Divorciado")),
-                                        DropdownMenuItem(
-                                            value: "viuvo",
-                                            child: Text("Viúvo")),
-                                      ],
-                                      onChanged: (String? newValue) {
-                                        if (newValue != null) {
-                                          setState(
-                                            () {
-                                              estadoCivilSocioControllers[
-                                                  index] = newValue;
-                                            },
-                                          );
-                                        }
-                                      },
-                                      decoration: InputDecoration(
-                                        label: const Text("Estado Cívil"),
-                                        fillColor: const Color(0xFFF1F4FF)
-                                            .withOpacity(0.9),
-                                        filled: true,
-                                        labelStyle: GoogleFonts.poppins(
-                                            fontWeight: FontWeight.w500,
-                                            fontSize: 16,
-                                            color: const Color(0xFF626262)),
-                                        isDense: true,
-                                        border: OutlineInputBorder(
-                                          borderSide: const BorderSide(
-                                              color: Color(0xFF262c40),
-                                              width: 2.0),
-                                          borderRadius:
-                                              BorderRadius.circular(11),
-                                        ),
-                                        enabledBorder: OutlineInputBorder(
-                                          borderSide: const BorderSide(
-                                              color: Color(0xFF262c40),
-                                              width: 2.0),
-                                          borderRadius:
-                                              BorderRadius.circular(11),
-                                        ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderSide: const BorderSide(
-                                              color: Color(0xFF262c40),
-                                              width: 2.0),
-                                          borderRadius:
-                                              BorderRadius.circular(11),
-                                        ),
-                                        focusedErrorBorder: OutlineInputBorder(
-                                          borderSide: const BorderSide(
-                                              color: Color(0xFF262c40),
-                                              width: 2.0),
-                                          borderRadius:
-                                              BorderRadius.circular(11),
-                                        ),
-                                        errorBorder: OutlineInputBorder(
-                                          borderSide: const BorderSide(
-                                              color: Color(0xFF262c40),
-                                              width: 2.0),
-                                          borderRadius:
-                                              BorderRadius.circular(11),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 25),
-                                Expanded(
-                                  flex: 1,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(bottom: 15),
-                                    child: TextFormField(
-                                      decoration:
-                                          textFormField("Nacionalidade"),
-                                      keyboardType: TextInputType.text,
-                                      controller:
-                                          nacionalidadeControllers[index],
-                                      validator: (value) {
-                                        if (value == null || value.isEmpty) {
-                                          return "Campo obrigatório.";
-                                        }
-                                        return null;
-                                      },
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 25),
-                                Expanded(
-                                  flex: 1,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(bottom: 15),
-                                    child: TextFormField(
-                                      decoration: textFormField("Profissão"),
-                                      keyboardType: TextInputType.text,
-                                      controller: _cpfController,
-                                      validator: (value) {
-                                        if (value == null || value.isEmpty) {
-                                          return "Campo obrigatório.";
-                                        }
-                                        return null;
-                                      },
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.digitsOnly,
-                                        CpfInputFormatter(),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            // Documento de identificação:
-                            Row(
-                              children: [
-                                // Documento de identificação:
-                                Expanded(
-                                  flex: 2,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(bottom: 15),
-                                    child: DropdownButtonFormField<String>(
-                                      value: tipoDocControllers[index],
-                                      items: const [
-                                        DropdownMenuItem(
-                                          value: "Identidade",
-                                          child: Text("Carteira de Identidade"),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: "funcional",
-                                          child: Text("Identidade Funcional"),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: "CNH",
-                                          child: Text(
-                                              "Carteira de Motorista (CNH)"),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: "Passaporte",
-                                          child: Text("Passaporte"),
-                                        ),
-                                      ],
-                                      onChanged: (String? newValue) {
-                                        if (newValue != null) {
-                                          setState(
-                                            () {
-                                              tipoDocControllers[index] =
-                                                  newValue;
-                                            },
-                                          );
-                                        }
-                                      },
-                                      decoration: InputDecoration(
-                                        label: const Text(
-                                            "Documento de Identificação"),
-                                        fillColor: const Color(0xFFF1F4FF)
-                                            .withOpacity(0.9),
-                                        filled: true,
-                                        labelStyle: GoogleFonts.poppins(
-                                            fontWeight: FontWeight.w500,
-                                            fontSize: 16,
-                                            color: const Color(0xFF626262)),
-                                        isDense: true,
-                                        border: OutlineInputBorder(
-                                          borderSide: const BorderSide(
-                                              color: Color(0xFF262c40),
-                                              width: 2.0),
-                                          borderRadius:
-                                              BorderRadius.circular(11),
-                                        ),
-                                        enabledBorder: OutlineInputBorder(
-                                          borderSide: const BorderSide(
-                                              color: Color(0xFF262c40),
-                                              width: 2.0),
-                                          borderRadius:
-                                              BorderRadius.circular(11),
-                                        ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderSide: const BorderSide(
-                                              color: Color(0xFF262c40),
-                                              width: 2.0),
-                                          borderRadius:
-                                              BorderRadius.circular(11),
-                                        ),
-                                        focusedErrorBorder: OutlineInputBorder(
-                                          borderSide: const BorderSide(
-                                              color: Color(0xFF262c40),
-                                              width: 2.0),
-                                          borderRadius:
-                                              BorderRadius.circular(11),
-                                        ),
-                                        errorBorder: OutlineInputBorder(
-                                          borderSide: const BorderSide(
-                                              color: Color(0xFF262c40),
-                                              width: 2.0),
-                                          borderRadius:
-                                              BorderRadius.circular(11),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 25),
-                                Expanded(
-                                  flex: 1,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(bottom: 15),
-                                    child: TextFormField(
-                                      decoration:
-                                          textFormField("Número Documento"),
-                                      keyboardType: TextInputType.name,
-                                      controller: _cpfController,
-                                      validator: (value) {
-                                        if (value == null || value.isEmpty) {
-                                          return "Campo obrigatório.";
-                                        }
-                                        return null;
-                                      },
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.digitsOnly,
-                                        CpfInputFormatter(),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 25),
-                                Expanded(
-                                  flex: 2,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(bottom: 15),
-                                    child: TextFormField(
-                                      decoration: textFormField("CPF"),
-                                      keyboardType: TextInputType.number,
-                                      controller: cpfControllers[index],
-                                      validator: (value) {
-                                        if (value == null || value.isEmpty) {
-                                          return "Campo obrigatório.";
-                                        }
-                                        return null;
-                                      },
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.digitsOnly,
-                                        CpfInputFormatter(),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 25),
-                                Expanded(
-                                  flex: 2,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(bottom: 15),
-                                    child: TextFormField(
-                                      decoration: textFormField("Rua"),
-                                      keyboardType: TextInputType.text,
-                                      controller: _cpfController,
-                                      validator: (value) {
-                                        if (value == null || value.isEmpty) {
-                                          return "Campo obrigatório.";
-                                        }
-                                        return null;
-                                      },
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.digitsOnly,
-                                        CpfInputFormatter(),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 25),
-                                Expanded(
-                                  flex: 1,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(bottom: 15),
-                                    child: TextFormField(
-                                      decoration: textFormField("N°"),
-                                      keyboardType: TextInputType.text,
-                                      controller: _cpfController,
-                                      validator: (value) {
-                                        if (value == null || value.isEmpty) {
-                                          return "Campo obrigatório.";
-                                        }
-                                        return null;
-                                      },
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.digitsOnly,
-                                        CpfInputFormatter(),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            Row(
-                              children: [
-                                // Documento de identificação:
-                                SizedBox(
-                                  width: 200,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(bottom: 15),
-                                    child: TextFormField(
-                                      decoration: textFormField("Bairro"),
-                                      keyboardType: TextInputType.text,
-                                      controller: _cpfController,
-                                      validator: (value) {
-                                        if (value == null || value.isEmpty) {
-                                          return "Campo obrigatório.";
-                                        }
-                                        return null;
-                                      },
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.digitsOnly,
-                                        CpfInputFormatter(),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 25),
-                                SizedBox(
-                                  width: 250,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(bottom: 15),
-                                    child: TextFormField(
-                                      decoration: textFormField("Estado"),
-                                      keyboardType: TextInputType.text,
-                                      controller: _cpfController,
-                                      validator: (value) {
-                                        if (value == null || value.isEmpty) {
-                                          return "Campo obrigatório.";
-                                        }
-                                        return null;
-                                      },
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.digitsOnly,
-                                        CpfInputFormatter(),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 25),
-                                SizedBox(
-                                  width: 200,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(bottom: 15),
-                                    child: TextFormField(
-                                      decoration: textFormField("CEP"),
-                                      keyboardType: TextInputType.number,
-                                      controller: _cpfController,
-                                      validator: (value) {
-                                        if (value == null || value.isEmpty) {
-                                          return "Campo obrigatório.";
-                                        }
-                                        return null;
-                                      },
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.digitsOnly,
-                                        CpfInputFormatter(),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ],
                         ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 5),
-                  const Divider(thickness: 1, color: Colors.grey),
-                  const SizedBox(height: 15),
-
-                  Row(
-                    children: [
-                      // atividade economica
-                      SizedBox(
-                        width: 500,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 15),
-                          child: TextFormField(
-                            decoration: textFormField("Atividade Economica"),
-                            keyboardType: TextInputType.number,
-                            controller: _cpfController,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return "Campo obrigatório.";
-                              }
-                              return null;
-                            },
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              CpfInputFormatter(),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 25),
-                      SizedBox(
-                        width: 250,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 15),
-                          child: TextFormField(
-                            decoration: textFormField("Município e Estado"),
-                            keyboardType: TextInputType.number,
-                            controller: _cpfController,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return "Campo obrigatório.";
-                              }
-                              return null;
-                            },
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              CpfInputFormatter(),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 25),
-                      SizedBox(
-                        width: 200,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 15),
-                          child: TextFormField(
-                            decoration: textFormField("CEP"),
-                            keyboardType: TextInputType.number,
-                            controller: _cpfController,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return "Campo obrigatório.";
-                              }
-                              return null;
-                            },
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              CpfInputFormatter(),
-                            ],
-                          ),
-                        ),
-                      ),
                     ],
                   ),
+
+                  Divider(thickness: 1, color: Colors.grey[300]),
+                  // Row(
+                  //   children: [
+                  //     if (exibirFormulario)
+                  //       Text(
+                  //         "Sócio 1",
+                  //         style: GoogleFonts.poppins(
+                  //           fontSize: 20,
+                  //           fontWeight: FontWeight.w700,
+                  //           color: Colors.black,
+                  //         ),
+                  //       ),
+                  //   ],
+                  // ),
+                  // Row(
+                  //   children: [
+                  //     SizedBox(
+                  //       width: 300,
+                  //       child: Padding(
+                  //         padding: const EdgeInsets.only(bottom: 15),
+                  //         child: DropdownButtonFormField<String>(
+                  //           value: tipoPessoa,
+                  //           items: const [
+                  //             DropdownMenuItem(
+                  //               value: "fisica",
+                  //               child: Text("Pessoa Física"),
+                  //             ),
+                  //             DropdownMenuItem(
+                  //               value: "juridica",
+                  //               child: Text("Pessoa Jurídica"),
+                  //             ),
+                  //           ],
+                  //           onChanged: _pessoa,
+                  //           decoration: InputDecoration(
+                  //             label: const Text("Qual é a natureza"),
+                  //             fillColor:
+                  //                 const Color(0xFFF1F4FF).withOpacity(0.9),
+                  //             filled: true,
+                  //             labelStyle: GoogleFonts.poppins(
+                  //                 fontWeight: FontWeight.w500,
+                  //                 fontSize: 16,
+                  //                 color: const Color(0xFF626262)),
+                  //             isDense: true,
+                  //             border: OutlineInputBorder(
+                  //               borderSide: const BorderSide(
+                  //                   color: Color(0xFF262c40), width: 2.0),
+                  //               borderRadius: BorderRadius.circular(11),
+                  //             ),
+                  //             enabledBorder: OutlineInputBorder(
+                  //               borderSide: const BorderSide(
+                  //                   color: Color(0xFF262c40), width: 2.0),
+                  //               borderRadius: BorderRadius.circular(11),
+                  //             ),
+                  //             focusedBorder: OutlineInputBorder(
+                  //               borderSide: const BorderSide(
+                  //                   color: Color(0xFF262c40), width: 2.0),
+                  //               borderRadius: BorderRadius.circular(11),
+                  //             ),
+                  //             focusedErrorBorder: OutlineInputBorder(
+                  //               borderSide: const BorderSide(
+                  //                   color: Color(0xFF262c40), width: 2.0),
+                  //               borderRadius: BorderRadius.circular(11),
+                  //             ),
+                  //             errorBorder: OutlineInputBorder(
+                  //               borderSide: const BorderSide(
+                  //                   color: Color(0xFF262c40), width: 2.0),
+                  //               borderRadius: BorderRadius.circular(11),
+                  //             ),
+                  //           ),
+                  //         ),
+                  //       ),
+                  //     ),
+                  //   ],
+                  // ),
+
+                  // // sexo
+                  // Row(
+                  //   children: [
+                  //     Expanded(
+                  //       flex: 1,
+                  //       child: Padding(
+                  //         padding: const EdgeInsets.only(bottom: 15),
+                  //         child: DropdownButtonFormField<String>(
+                  //           value: tipoSexo,
+                  //           items: const [
+                  //             DropdownMenuItem(
+                  //               value: "masculino",
+                  //               child: Text("Masculino"),
+                  //             ),
+                  //             DropdownMenuItem(
+                  //               value: "feminino",
+                  //               child: Text("Feminito"),
+                  //             ),
+                  //           ],
+                  //           onChanged: _sexo,
+                  //           decoration: InputDecoration(
+                  //             label: const Text("Sexo"),
+                  //             fillColor:
+                  //                 const Color(0xFFF1F4FF).withOpacity(0.9),
+                  //             filled: true,
+                  //             labelStyle: GoogleFonts.poppins(
+                  //                 fontWeight: FontWeight.w500,
+                  //                 fontSize: 16,
+                  //                 color: const Color(0xFF626262)),
+                  //             isDense: true,
+                  //             border: OutlineInputBorder(
+                  //               borderSide: const BorderSide(
+                  //                   color: Color(0xFF262c40), width: 2.0),
+                  //               borderRadius: BorderRadius.circular(11),
+                  //             ),
+                  //             enabledBorder: OutlineInputBorder(
+                  //               borderSide: const BorderSide(
+                  //                   color: Color(0xFF262c40), width: 2.0),
+                  //               borderRadius: BorderRadius.circular(11),
+                  //             ),
+                  //             focusedBorder: OutlineInputBorder(
+                  //               borderSide: const BorderSide(
+                  //                   color: Color(0xFF262c40), width: 2.0),
+                  //               borderRadius: BorderRadius.circular(11),
+                  //             ),
+                  //             focusedErrorBorder: OutlineInputBorder(
+                  //               borderSide: const BorderSide(
+                  //                   color: Color(0xFF262c40), width: 2.0),
+                  //               borderRadius: BorderRadius.circular(11),
+                  //             ),
+                  //             errorBorder: OutlineInputBorder(
+                  //               borderSide: const BorderSide(
+                  //                   color: Color(0xFF262c40), width: 2.0),
+                  //               borderRadius: BorderRadius.circular(11),
+                  //             ),
+                  //           ),
+                  //         ),
+                  //       ),
+                  //     ),
+                  //     const SizedBox(width: 25),
+                  // Expanded(
+                  //   flex: 1,
+                  //   child: Padding(
+                  //     padding: const EdgeInsets.only(bottom: 15),
+                  //     child: TextFormField(
+                  //       decoration: textFormField("Nome"),
+                  //       keyboardType: TextInputType.text,
+                  //       controller: _nomeController,
+                  //       validator: (value) {
+                  //         if (value == null || value.isEmpty) {
+                  //           return "Campo obrigatório.";
+                  //         }
+                  //         return null;
+                  //       },
+                  //     ),
+                  //   ),
+                  // ),
+                  //     const SizedBox(width: 25),
+                  //     Expanded(
+                  //       flex: 1,
+                  //       child: Padding(
+                  //         padding: const EdgeInsets.only(bottom: 15),
+                  //         child: TextFormField(
+                  //           decoration: textFormField("Nacionalidade"),
+                  //           keyboardType: TextInputType.text,
+                  //           controller: _nacionalidadeController,
+                  //           validator: (value) {
+                  //             if (value == null || value.isEmpty) {
+                  //               return "Campo obrigatório.";
+                  //             }
+                  //             return null;
+                  //           },
+                  //         ),
+                  //       ),
+                  //     ),
+                  //     const SizedBox(width: 25),
+                  //     // estado civil
+                  //     Expanded(
+                  //       flex: 1,
+                  //       child: Padding(
+                  //         padding: const EdgeInsets.only(bottom: 15),
+                  //         child: DropdownButtonFormField<String>(
+                  //           value: tipoEstadoCivil,
+                  //           items: const [
+                  //             DropdownMenuItem(
+                  //                 value: "solteiro", child: Text("Solteiro")),
+                  //             DropdownMenuItem(
+                  //                 value: "casado", child: Text("Casado")),
+                  //             DropdownMenuItem(
+                  //                 value: "divorciado",
+                  //                 child: Text("Divorciado")),
+                  //             DropdownMenuItem(
+                  //                 value: "viuvo", child: Text("Viúvo")),
+                  //           ],
+                  //           onChanged: _estadoCivil,
+                  //           decoration: InputDecoration(
+                  //             label: const Text("Estado Cívil"),
+                  //             fillColor:
+                  //                 const Color(0xFFF1F4FF).withOpacity(0.9),
+                  //             filled: true,
+                  //             labelStyle: GoogleFonts.poppins(
+                  //                 fontWeight: FontWeight.w500,
+                  //                 fontSize: 16,
+                  //                 color: const Color(0xFF626262)),
+                  //             isDense: true,
+                  //             border: OutlineInputBorder(
+                  //               borderSide: const BorderSide(
+                  //                   color: Color(0xFF262c40), width: 2.0),
+                  //               borderRadius: BorderRadius.circular(11),
+                  //             ),
+                  //             enabledBorder: OutlineInputBorder(
+                  //               borderSide: const BorderSide(
+                  //                   color: Color(0xFF262c40), width: 2.0),
+                  //               borderRadius: BorderRadius.circular(11),
+                  //             ),
+                  //             focusedBorder: OutlineInputBorder(
+                  //               borderSide: const BorderSide(
+                  //                   color: Color(0xFF262c40), width: 2.0),
+                  //               borderRadius: BorderRadius.circular(11),
+                  //             ),
+                  //             focusedErrorBorder: OutlineInputBorder(
+                  //               borderSide: const BorderSide(
+                  //                   color: Color(0xFF262c40), width: 2.0),
+                  //               borderRadius: BorderRadius.circular(11),
+                  //             ),
+                  //             errorBorder: OutlineInputBorder(
+                  //               borderSide: const BorderSide(
+                  //                   color: Color(0xFF262c40), width: 2.0),
+                  //               borderRadius: BorderRadius.circular(11),
+                  //             ),
+                  //           ),
+                  //         ),
+                  //       ),
+                  //     ),
+                  //     const SizedBox(width: 25),
+
+                  //     Expanded(
+                  //       flex: 1,
+                  //       child: Padding(
+                  //         padding: const EdgeInsets.only(bottom: 15),
+                  //         child: TextFormField(
+                  //           decoration: textFormField("Naturalidade"),
+                  //           keyboardType: TextInputType.text,
+                  //           controller: _naturalController,
+                  //           validator: (value) {
+                  //             if (value == null || value.isEmpty) {
+                  //               return "Campo obrigatório.";
+                  //             }
+                  //             return null;
+                  //           },
+                  //         ),
+                  //       ),
+                  //     ),
+                  //     const SizedBox(width: 25),
+                  //     Expanded(
+                  //       flex: 1,
+                  //       child: Padding(
+                  //         padding: const EdgeInsets.only(bottom: 15),
+                  //         child: TextFormField(
+                  //           decoration: textFormField("Data Nascimento"),
+                  //           keyboardType: TextInputType.number,
+                  //           controller: _nascimentoController,
+                  //           validator: (value) {
+                  //             if (value == null || value.isEmpty) {
+                  //               return "Campo obrigatório.";
+                  //             }
+                  //             return null;
+                  //           },
+                  //           inputFormatters: [
+                  //             FilteringTextInputFormatter.digitsOnly,
+                  //             DataInputFormatter(),
+                  //           ],
+                  //         ),
+                  //       ),
+                  //     ),
+                  //   ],
+                  // ),
+
+                  // // Documento de identificação:
+                  // Row(
+                  //   children: [
+                  //     Expanded(
+                  //       flex: 1,
+                  //       child: Padding(
+                  //         padding: const EdgeInsets.only(bottom: 15),
+                  //         child: TextFormField(
+                  //           decoration: textFormField("Profissão"),
+                  //           keyboardType: TextInputType.text,
+                  //           controller: _profissaoController,
+                  //           validator: (value) {
+                  //             if (value == null || value.isEmpty) {
+                  //               return "Campo obrigatório.";
+                  //             }
+                  //             return null;
+                  //           },
+                  //         ),
+                  //       ),
+                  //     ),
+                  //     const SizedBox(width: 25),
+                  //     Expanded(
+                  //       flex: 1,
+                  //       child: Padding(
+                  //         padding: const EdgeInsets.only(bottom: 15),
+                  //         child: DropdownButtonFormField<String>(
+                  //           value: tipoDocumento,
+                  //           items: const [
+                  //             DropdownMenuItem(
+                  //               value: "identidade",
+                  //               child: Text("Carteira de Identidade"),
+                  //             ),
+                  //             DropdownMenuItem(
+                  //               value: "funcional",
+                  //               child: Text("Identidade Funcional"),
+                  //             ),
+                  //             DropdownMenuItem(
+                  //               value: "cnh",
+                  //               child: Text("Carteira de Motorista (CNH)"),
+                  //             ),
+                  //             DropdownMenuItem(
+                  //               value: "passaporte",
+                  //               child: Text("Passaporte"),
+                  //             ),
+                  //           ],
+                  //           onChanged: _documento,
+                  //           decoration: InputDecoration(
+                  //             label: const Text("Documento de Identificação"),
+                  //             fillColor:
+                  //                 const Color(0xFFF1F4FF).withOpacity(0.9),
+                  //             filled: true,
+                  //             labelStyle: GoogleFonts.poppins(
+                  //                 fontWeight: FontWeight.w500,
+                  //                 fontSize: 16,
+                  //                 color: const Color(0xFF626262)),
+                  //             isDense: true,
+                  //             border: OutlineInputBorder(
+                  //               borderSide: const BorderSide(
+                  //                   color: Color(0xFF262c40), width: 2.0),
+                  //               borderRadius: BorderRadius.circular(11),
+                  //             ),
+                  //             enabledBorder: OutlineInputBorder(
+                  //               borderSide: const BorderSide(
+                  //                   color: Color(0xFF262c40), width: 2.0),
+                  //               borderRadius: BorderRadius.circular(11),
+                  //             ),
+                  //             focusedBorder: OutlineInputBorder(
+                  //               borderSide: const BorderSide(
+                  //                   color: Color(0xFF262c40), width: 2.0),
+                  //               borderRadius: BorderRadius.circular(11),
+                  //             ),
+                  //             focusedErrorBorder: OutlineInputBorder(
+                  //               borderSide: const BorderSide(
+                  //                   color: Color(0xFF262c40), width: 2.0),
+                  //               borderRadius: BorderRadius.circular(11),
+                  //             ),
+                  //             errorBorder: OutlineInputBorder(
+                  //               borderSide: const BorderSide(
+                  //                   color: Color(0xFF262c40), width: 2.0),
+                  //               borderRadius: BorderRadius.circular(11),
+                  //             ),
+                  //           ),
+                  //         ),
+                  //       ),
+                  //     ),
+                  //     const SizedBox(width: 25),
+                  //     Expanded(
+                  //       flex: 1,
+                  //       child: Padding(
+                  //         padding: const EdgeInsets.only(bottom: 15),
+                  //         child: TextFormField(
+                  //           decoration: textFormField("Número Documento"),
+                  //           keyboardType: TextInputType.name,
+                  //           controller: _numeroDocController,
+                  //           validator: (value) {
+                  //             if (value == null || value.isEmpty) {
+                  //               return "Campo obrigatório.";
+                  //             }
+                  //             return null;
+                  //           },
+                  //         ),
+                  //       ),
+                  //     ),
+                  //     const SizedBox(width: 25),
+                  //     Expanded(
+                  //       flex: 1,
+                  //       child: Padding(
+                  //         padding: const EdgeInsets.only(bottom: 15),
+                  //         child: TextFormField(
+                  //           decoration: textFormField("CPF"),
+                  //           keyboardType: TextInputType.number,
+                  //           controller: _cpfController,
+                  //           validator: (value) {
+                  //             if (value == null || value.isEmpty) {
+                  //               return "Campo obrigatório.";
+                  //             }
+                  //             return null;
+                  //           },
+                  //           inputFormatters: [
+                  //             FilteringTextInputFormatter.digitsOnly,
+                  //             CpfInputFormatter(),
+                  //           ],
+                  //         ),
+                  //       ),
+                  //     ),
+                  //     const SizedBox(width: 25),
+                  //     Expanded(
+                  //       flex: 1,
+                  //       child: Padding(
+                  //         padding: const EdgeInsets.only(bottom: 15),
+                  //         child: TextFormField(
+                  //           decoration: textFormField("CEP"),
+                  //           keyboardType: TextInputType.number,
+                  //           controller: _cepController.cepController,
+                  //           validator: (value) {
+                  //             if (value == null || value.isEmpty) {
+                  //               return "Campo obrigatório.";
+                  //             }
+                  //             return null;
+                  //           },
+                  //           inputFormatters: [
+                  //             FilteringTextInputFormatter.digitsOnly,
+                  //             CepInputFormatter()
+                  //           ],
+                  //           onChanged: (value) {
+                  //             final cepLimpo = removerFormatacaoCep(value);
+                  //             if (cepLimpo.length == 8) {
+                  //               _cepController.buscarCep(cepLimpo);
+                  //             }
+                  //           },
+                  //         ),
+                  //       ),
+                  //     ),
+                  //     const SizedBox(width: 25),
+                  //     Expanded(
+                  //       flex: 1,
+                  //       child: Padding(
+                  //         padding: const EdgeInsets.only(bottom: 15),
+                  //         child: TextFormField(
+                  //           decoration: textFormField("Rua"),
+                  //           keyboardType: TextInputType.text,
+                  //           controller: _cepController.ruaController,
+                  //           validator: (value) {
+                  //             if (value == null || value.isEmpty) {
+                  //               return "Campo obrigatório.";
+                  //             }
+                  //             return null;
+                  //           },
+                  //         ),
+                  //       ),
+                  //     ),
+                  //   ],
+                  // ),
+
+                  // Row(
+                  //   children: [
+                  //     SizedBox(
+                  //       width: 200,
+                  //       child: Padding(
+                  //         padding: const EdgeInsets.only(bottom: 15),
+                  //         child: TextFormField(
+                  //           decoration: textFormField("N°"),
+                  //           keyboardType: TextInputType.text,
+                  //           controller: _cepController.numeroController,
+                  //           validator: (value) {
+                  //             if (value == null || value.isEmpty) {
+                  //               return "Campo obrigatório.";
+                  //             }
+                  //             return null;
+                  //           },
+                  //         ),
+                  //       ),
+                  //     ),
+                  //     const SizedBox(width: 25),
+                  //     SizedBox(
+                  //       width: 250,
+                  //       child: Padding(
+                  //         padding: const EdgeInsets.only(bottom: 15),
+                  //         child: TextFormField(
+                  //           decoration: textFormField("Bairro"),
+                  //           keyboardType: TextInputType.text,
+                  //           controller: _cepController.bairroController,
+                  //           validator: (value) {
+                  //             if (value == null || value.isEmpty) {
+                  //               return "Campo obrigatório.";
+                  //             }
+                  //             return null;
+                  //           },
+                  //         ),
+                  //       ),
+                  //     ),
+                  //     const SizedBox(width: 25),
+                  //     SizedBox(
+                  //       width: 250,
+                  //       child: Padding(
+                  //         padding: const EdgeInsets.only(bottom: 15),
+                  //         child: TextFormField(
+                  //           decoration: textFormField("Municipio"),
+                  //           keyboardType: TextInputType.text,
+                  //           controller: _cepController.municipioController,
+                  //           validator: (value) {
+                  //             if (value == null || value.isEmpty) {
+                  //               return "Campo obrigatório.";
+                  //             }
+                  //             return null;
+                  //           },
+                  //         ),
+                  //       ),
+                  //     ),
+                  //     const SizedBox(width: 25),
+                  //     SizedBox(
+                  //       width: 250,
+                  //       child: Padding(
+                  //         padding: const EdgeInsets.only(bottom: 15),
+                  //         child: TextFormField(
+                  //           decoration: textFormField("Estado"),
+                  //           keyboardType: TextInputType.text,
+                  //           controller: _cepController.estadoController,
+                  //           validator: (value) {
+                  //             if (value == null || value.isEmpty) {
+                  //               return "Campo obrigatório.";
+                  //             }
+                  //             return null;
+                  //           },
+                  //         ),
+                  //       ),
+                  //     ),
+                  //   ],
+                  // ),
+
+                  // // |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+                  // // |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+                  // // |||||||||||||||||||||||||||||||||||| FORMULARIO SOCIOS ||||||||||||||||||||||||||||||||||||||||
+                  // // |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+                  // // |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+                  // Column(
+                  //   children: List.generate(
+                  //     numeroDeSocios ??
+                  //         0, // Gera a quantidade de campos conforme o número de sócios
+                  //     (index) => Padding(
+                  //       padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  //       child: Column(
+                  //         children: [
+                  //           const SizedBox(height: 5),
+                  //           const Divider(thickness: 1, color: Colors.grey),
+                  //           const SizedBox(height: 15),
+                  //           Row(
+                  //             children: [
+                  //               Text(
+                  //                 "Sócio ${index + 2}",
+                  //                 style: GoogleFonts.poppins(
+                  //                   fontSize: 20,
+                  //                   fontWeight: FontWeight.w700,
+                  //                   color: Colors.black,
+                  //                 ),
+                  //               ),
+                  //             ],
+                  //           ),
+
+                  //           const SizedBox(height: 5),
+
+                  //           Row(
+                  //             children: [
+                  //               SizedBox(
+                  //                 width: 300,
+                  //                 child: Padding(
+                  //                   padding: const EdgeInsets.only(bottom: 15),
+                  //                   child: DropdownButtonFormField<String>(
+                  //                     value: naturezaSocioControllers[index],
+                  //                     items: const [
+                  //                       DropdownMenuItem(
+                  //                         value: "fisica",
+                  //                         child: Text("Pessoa Física"),
+                  //                       ),
+                  //                       DropdownMenuItem(
+                  //                         value: "juridica",
+                  //                         child: Text("Pessoa Jurídica"),
+                  //                       ),
+                  //                     ],
+                  //                     onChanged: (String? newValue) {
+                  //                       if (newValue != null) {
+                  //                         setState(() {
+                  //                           naturezaSocioControllers[index] =
+                  //                               newValue;
+                  //                         });
+                  //                       }
+                  //                     },
+                  //                     decoration: InputDecoration(
+                  //                       label: const Text("Qual é a natureza"),
+                  //                       fillColor: const Color(0xFFF1F4FF)
+                  //                           .withOpacity(0.9),
+                  //                       filled: true,
+                  //                       labelStyle: GoogleFonts.poppins(
+                  //                           fontWeight: FontWeight.w500,
+                  //                           fontSize: 16,
+                  //                           color: const Color(0xFF626262)),
+                  //                       isDense: true,
+                  //                       border: OutlineInputBorder(
+                  //                         borderSide: const BorderSide(
+                  //                             color: Color(0xFF262c40),
+                  //                             width: 2.0),
+                  //                         borderRadius:
+                  //                             BorderRadius.circular(11),
+                  //                       ),
+                  //                       enabledBorder: OutlineInputBorder(
+                  //                         borderSide: const BorderSide(
+                  //                             color: Color(0xFF262c40),
+                  //                             width: 2.0),
+                  //                         borderRadius:
+                  //                             BorderRadius.circular(11),
+                  //                       ),
+                  //                       focusedBorder: OutlineInputBorder(
+                  //                         borderSide: const BorderSide(
+                  //                             color: Color(0xFF262c40),
+                  //                             width: 2.0),
+                  //                         borderRadius:
+                  //                             BorderRadius.circular(11),
+                  //                       ),
+                  //                       focusedErrorBorder: OutlineInputBorder(
+                  //                         borderSide: const BorderSide(
+                  //                             color: Color(0xFF262c40),
+                  //                             width: 2.0),
+                  //                         borderRadius:
+                  //                             BorderRadius.circular(11),
+                  //                       ),
+                  //                       errorBorder: OutlineInputBorder(
+                  //                         borderSide: const BorderSide(
+                  //                             color: Color(0xFF262c40),
+                  //                             width: 2.0),
+                  //                         borderRadius:
+                  //                             BorderRadius.circular(11),
+                  //                       ),
+                  //                     ),
+                  //                   ),
+                  //                 ),
+                  //               ),
+                  //             ],
+                  //           ),
+
+                  //           // sexo
+                  //           Row(
+                  //             children: [
+                  //               Expanded(
+                  //                 flex: 1,
+                  //                 child: Padding(
+                  //                   padding: const EdgeInsets.only(bottom: 15),
+                  //                   child: DropdownButtonFormField<String>(
+                  //                     value: sexoControllers[index],
+                  //                     items: const [
+                  //                       DropdownMenuItem(
+                  //                         value: "masculino",
+                  //                         child: Text("Masculino"),
+                  //                       ),
+                  //                       DropdownMenuItem(
+                  //                         value: "feminino",
+                  //                         child: Text("Feminino"),
+                  //                       ),
+                  //                     ],
+                  //                     onChanged: (String? newValue) {
+                  //                       if (newValue != null) {
+                  //                         setState(() {
+                  //                           sexoControllers[index] = newValue;
+                  //                         });
+                  //                       }
+                  //                     },
+                  //                     decoration: InputDecoration(
+                  //                       label: const Text("Sexo"),
+                  //                       fillColor: const Color(0xFFF1F4FF)
+                  //                           .withOpacity(0.9),
+                  //                       filled: true,
+                  //                       labelStyle: GoogleFonts.poppins(
+                  //                         fontWeight: FontWeight.w500,
+                  //                         fontSize: 16,
+                  //                         color: const Color(0xFF626262),
+                  //                       ),
+                  //                       isDense: true,
+                  //                       border: OutlineInputBorder(
+                  //                         borderSide: const BorderSide(
+                  //                             color: Color(0xFF262c40),
+                  //                             width: 2.0),
+                  //                         borderRadius:
+                  //                             BorderRadius.circular(11),
+                  //                       ),
+                  //                       enabledBorder: OutlineInputBorder(
+                  //                         borderSide: const BorderSide(
+                  //                             color: Color(0xFF262c40),
+                  //                             width: 2.0),
+                  //                         borderRadius:
+                  //                             BorderRadius.circular(11),
+                  //                       ),
+                  //                       focusedBorder: OutlineInputBorder(
+                  //                         borderSide: const BorderSide(
+                  //                             color: Color(0xFF262c40),
+                  //                             width: 2.0),
+                  //                         borderRadius:
+                  //                             BorderRadius.circular(11),
+                  //                       ),
+                  //                       focusedErrorBorder: OutlineInputBorder(
+                  //                         borderSide: const BorderSide(
+                  //                             color: Color(0xFF262c40),
+                  //                             width: 2.0),
+                  //                         borderRadius:
+                  //                             BorderRadius.circular(11),
+                  //                       ),
+                  //                       errorBorder: OutlineInputBorder(
+                  //                         borderSide: const BorderSide(
+                  //                             color: Color(0xFF262c40),
+                  //                             width: 2.0),
+                  //                         borderRadius:
+                  //                             BorderRadius.circular(11),
+                  //                       ),
+                  //                     ),
+                  //                   ),
+                  //                 ),
+                  //               ),
+                  //               const SizedBox(width: 25),
+                  //               Expanded(
+                  //                 flex: 1,
+                  //                 child: Padding(
+                  //                   padding: const EdgeInsets.only(bottom: 15),
+                  //                   child: TextFormField(
+                  //                     decoration: textFormField("Nome"),
+                  //                     keyboardType: TextInputType.text,
+                  //                     controller: nomeControllers[index],
+                  //                     validator: (value) {
+                  //                       if (value == null || value.isEmpty) {
+                  //                         return "Campo obrigatório.";
+                  //                       }
+                  //                       return null;
+                  //                     },
+                  //                   ),
+                  //                 ),
+                  //               ),
+                  //               const SizedBox(width: 25),
+                  //               Expanded(
+                  //                 flex: 1,
+                  //                 child: Padding(
+                  //                   padding: const EdgeInsets.only(bottom: 15),
+                  //                   child: TextFormField(
+                  //                     decoration:
+                  //                         textFormField("Nacionalidade"),
+                  //                     keyboardType: TextInputType.text,
+                  //                     controller:
+                  //                         nacionalidadeControllers[index],
+                  //                     validator: (value) {
+                  //                       if (value == null || value.isEmpty) {
+                  //                         return "Campo obrigatório.";
+                  //                       }
+                  //                       return null;
+                  //                     },
+                  //                   ),
+                  //                 ),
+                  //               ),
+                  //               const SizedBox(width: 25),
+                  //               // estado civil
+                  //               Expanded(
+                  //                 flex: 1,
+                  //                 child: Padding(
+                  //                   padding: const EdgeInsets.only(bottom: 15),
+                  //                   child: DropdownButtonFormField<String>(
+                  //                     value: estadoCivilSocioControllers[index],
+                  //                     items: const [
+                  //                       DropdownMenuItem(
+                  //                           value: "solteiro",
+                  //                           child: Text("Solteiro")),
+                  //                       DropdownMenuItem(
+                  //                           value: "casado",
+                  //                           child: Text("Casado")),
+                  //                       DropdownMenuItem(
+                  //                           value: "divorciado",
+                  //                           child: Text("Divorciado")),
+                  //                       DropdownMenuItem(
+                  //                           value: "viuvo",
+                  //                           child: Text("Viúvo")),
+                  //                     ],
+                  //                     onChanged: (String? newValue) {
+                  //                       if (newValue != null) {
+                  //                         setState(
+                  //                           () {
+                  //                             estadoCivilSocioControllers[
+                  //                                 index] = newValue;
+                  //                           },
+                  //                         );
+                  //                       }
+                  //                     },
+                  //                     decoration: InputDecoration(
+                  //                       label: const Text("Estado Cívil"),
+                  //                       fillColor: const Color(0xFFF1F4FF)
+                  //                           .withOpacity(0.9),
+                  //                       filled: true,
+                  //                       labelStyle: GoogleFonts.poppins(
+                  //                           fontWeight: FontWeight.w500,
+                  //                           fontSize: 16,
+                  //                           color: const Color(0xFF626262)),
+                  //                       isDense: true,
+                  //                       border: OutlineInputBorder(
+                  //                         borderSide: const BorderSide(
+                  //                             color: Color(0xFF262c40),
+                  //                             width: 2.0),
+                  //                         borderRadius:
+                  //                             BorderRadius.circular(11),
+                  //                       ),
+                  //                       enabledBorder: OutlineInputBorder(
+                  //                         borderSide: const BorderSide(
+                  //                             color: Color(0xFF262c40),
+                  //                             width: 2.0),
+                  //                         borderRadius:
+                  //                             BorderRadius.circular(11),
+                  //                       ),
+                  //                       focusedBorder: OutlineInputBorder(
+                  //                         borderSide: const BorderSide(
+                  //                             color: Color(0xFF262c40),
+                  //                             width: 2.0),
+                  //                         borderRadius:
+                  //                             BorderRadius.circular(11),
+                  //                       ),
+                  //                       focusedErrorBorder: OutlineInputBorder(
+                  //                         borderSide: const BorderSide(
+                  //                             color: Color(0xFF262c40),
+                  //                             width: 2.0),
+                  //                         borderRadius:
+                  //                             BorderRadius.circular(11),
+                  //                       ),
+                  //                       errorBorder: OutlineInputBorder(
+                  //                         borderSide: const BorderSide(
+                  //                             color: Color(0xFF262c40),
+                  //                             width: 2.0),
+                  //                         borderRadius:
+                  //                             BorderRadius.circular(11),
+                  //                       ),
+                  //                     ),
+                  //                   ),
+                  //                 ),
+                  //               ),
+                  //               const SizedBox(width: 25),
+
+                  //               Expanded(
+                  //                 flex: 1,
+                  //                 child: Padding(
+                  //                   padding: const EdgeInsets.only(bottom: 15),
+                  //                   child: TextFormField(
+                  //                     decoration: textFormField("Naturalidade"),
+                  //                     keyboardType: TextInputType.text,
+                  //                     controller:
+                  //                         nacionalidadeControllers[index],
+                  //                     validator: (value) {
+                  //                       if (value == null || value.isEmpty) {
+                  //                         return "Campo obrigatório.";
+                  //                       }
+                  //                       return null;
+                  //                     },
+                  //                   ),
+                  //                 ),
+                  //               ),
+                  //               const SizedBox(width: 25),
+                  //               Expanded(
+                  //                 flex: 1,
+                  //                 child: Padding(
+                  //                   padding: const EdgeInsets.only(bottom: 15),
+                  //                   child: TextFormField(
+                  //                     decoration:
+                  //                         textFormField("Data Nascimento"),
+                  //                     keyboardType: TextInputType.number,
+                  //                     controller: nascimentoControllers[index],
+                  //                     validator: (value) {
+                  //                       if (value == null || value.isEmpty) {
+                  //                         return "Campo obrigatório.";
+                  //                       }
+                  //                       return null;
+                  //                     },
+                  //                     inputFormatters: [
+                  //                       FilteringTextInputFormatter.digitsOnly,
+                  //                       DataInputFormatter(),
+                  //                     ],
+                  //                   ),
+                  //                 ),
+                  //               ),
+                  //             ],
+                  //           ),
+
+                  //           // Documento de identificação:
+                  //           Row(
+                  //             children: [
+                  //               // Documento de identificação:
+                  //               Expanded(
+                  //                 flex: 1,
+                  //                 child: Padding(
+                  //                   padding: const EdgeInsets.only(bottom: 15),
+                  //                   child: TextFormField(
+                  //                     decoration: textFormField("Profissão"),
+                  //                     keyboardType: TextInputType.text,
+                  //                     controller: profissaoControllers[index],
+                  //                     validator: (value) {
+                  //                       if (value == null || value.isEmpty) {
+                  //                         return "Campo obrigatório.";
+                  //                       }
+                  //                       return null;
+                  //                     },
+                  //                     inputFormatters: [
+                  //                       FilteringTextInputFormatter.digitsOnly,
+                  //                       CpfInputFormatter(),
+                  //                     ],
+                  //                   ),
+                  //                 ),
+                  //               ),
+                  //               const SizedBox(width: 25),
+                  //               Expanded(
+                  //                 flex: 1,
+                  //                 child: Padding(
+                  //                   padding: const EdgeInsets.only(bottom: 15),
+                  //                   child: DropdownButtonFormField<String>(
+                  //                     value: tipoDocControllers[index],
+                  //                     items: const [
+                  //                       DropdownMenuItem(
+                  //                         value: "Identidade",
+                  //                         child: Text("Carteira de Identidade"),
+                  //                       ),
+                  //                       DropdownMenuItem(
+                  //                         value: "funcional",
+                  //                         child: Text("Identidade Funcional"),
+                  //                       ),
+                  //                       DropdownMenuItem(
+                  //                         value: "CNH",
+                  //                         child: Text(
+                  //                             "Carteira de Motorista (CNH)"),
+                  //                       ),
+                  //                       DropdownMenuItem(
+                  //                         value: "Passaporte",
+                  //                         child: Text("Passaporte"),
+                  //                       ),
+                  //                     ],
+                  //                     onChanged: (String? newValue) {
+                  //                       if (newValue != null) {
+                  //                         setState(
+                  //                           () {
+                  //                             tipoDocControllers[index] =
+                  //                                 newValue;
+                  //                           },
+                  //                         );
+                  //                       }
+                  //                     },
+                  //                     decoration: InputDecoration(
+                  //                       label: const Text(
+                  //                           "Documento de Identificação"),
+                  //                       fillColor: const Color(0xFFF1F4FF)
+                  //                           .withOpacity(0.9),
+                  //                       filled: true,
+                  //                       labelStyle: GoogleFonts.poppins(
+                  //                           fontWeight: FontWeight.w500,
+                  //                           fontSize: 16,
+                  //                           color: const Color(0xFF626262)),
+                  //                       isDense: true,
+                  //                       border: OutlineInputBorder(
+                  //                         borderSide: const BorderSide(
+                  //                             color: Color(0xFF262c40),
+                  //                             width: 2.0),
+                  //                         borderRadius:
+                  //                             BorderRadius.circular(11),
+                  //                       ),
+                  //                       enabledBorder: OutlineInputBorder(
+                  //                         borderSide: const BorderSide(
+                  //                             color: Color(0xFF262c40),
+                  //                             width: 2.0),
+                  //                         borderRadius:
+                  //                             BorderRadius.circular(11),
+                  //                       ),
+                  //                       focusedBorder: OutlineInputBorder(
+                  //                         borderSide: const BorderSide(
+                  //                             color: Color(0xFF262c40),
+                  //                             width: 2.0),
+                  //                         borderRadius:
+                  //                             BorderRadius.circular(11),
+                  //                       ),
+                  //                       focusedErrorBorder: OutlineInputBorder(
+                  //                         borderSide: const BorderSide(
+                  //                             color: Color(0xFF262c40),
+                  //                             width: 2.0),
+                  //                         borderRadius:
+                  //                             BorderRadius.circular(11),
+                  //                       ),
+                  //                       errorBorder: OutlineInputBorder(
+                  //                         borderSide: const BorderSide(
+                  //                             color: Color(0xFF262c40),
+                  //                             width: 2.0),
+                  //                         borderRadius:
+                  //                             BorderRadius.circular(11),
+                  //                       ),
+                  //                     ),
+                  //                   ),
+                  //                 ),
+                  //               ),
+                  //               const SizedBox(width: 25),
+                  //               Expanded(
+                  //                 flex: 1,
+                  //                 child: Padding(
+                  //                   padding: const EdgeInsets.only(bottom: 15),
+                  //                   child: TextFormField(
+                  //                     decoration:
+                  //                         textFormField("Número Documento"),
+                  //                     keyboardType: TextInputType.name,
+                  //                     controller:
+                  //                         numeroDocumentoControllers[index],
+                  //                     validator: (value) {
+                  //                       if (value == null || value.isEmpty) {
+                  //                         return "Campo obrigatório.";
+                  //                       }
+                  //                       return null;
+                  //                     },
+                  //                     inputFormatters: [
+                  //                       FilteringTextInputFormatter.digitsOnly,
+                  //                       CpfInputFormatter(),
+                  //                     ],
+                  //                   ),
+                  //                 ),
+                  //               ),
+                  //               const SizedBox(width: 25),
+                  //               Expanded(
+                  //                 flex: 1,
+                  //                 child: Padding(
+                  //                   padding: const EdgeInsets.only(bottom: 15),
+                  //                   child: TextFormField(
+                  //                     decoration: textFormField("CPF"),
+                  //                     keyboardType: TextInputType.number,
+                  //                     controller: cpfControllers[index],
+                  //                     validator: (value) {
+                  //                       if (value == null || value.isEmpty) {
+                  //                         return "Campo obrigatório.";
+                  //                       }
+                  //                       return null;
+                  //                     },
+                  //                     inputFormatters: [
+                  //                       FilteringTextInputFormatter.digitsOnly,
+                  //                       CpfInputFormatter(),
+                  //                     ],
+                  //                   ),
+                  //                 ),
+                  //               ),
+                  //               const SizedBox(width: 25),
+                  //               Expanded(
+                  //                 flex: 1,
+                  //                 child: Padding(
+                  //                   padding: const EdgeInsets.only(bottom: 15),
+                  //                   child: TextFormField(
+                  //                     decoration: textFormField("CEP"),
+                  //                     keyboardType: TextInputType.number,
+                  //                     controller: cepControllers[index],
+                  //                     validator: (value) {
+                  //                       if (value == null || value.isEmpty) {
+                  //                         return "Campo obrigatório.";
+                  //                       }
+                  //                       return null;
+                  //                     },
+                  //                     inputFormatters: [
+                  //                       FilteringTextInputFormatter.digitsOnly,
+                  //                       CepInputFormatter(),
+                  //                     ],
+                  //                     onChanged: (value) {
+                  //                       if (removerFormatacaoCep(value)
+                  //                               .length ==
+                  //                           8) {
+                  //                         buscarCep(index);
+                  //                       }
+                  //                     },
+                  //                   ),
+                  //                 ),
+                  //               ),
+                  //               const SizedBox(width: 25),
+                  //               Expanded(
+                  //                 flex: 1,
+                  //                 child: Padding(
+                  //                   padding: const EdgeInsets.only(bottom: 15),
+                  //                   child: TextFormField(
+                  //                     decoration: textFormField("Rua"),
+                  //                     keyboardType: TextInputType.text,
+                  //                     controller: ruaControllers[index],
+                  //                     validator: (value) {
+                  //                       if (value == null || value.isEmpty) {
+                  //                         return "Campo obrigatório.";
+                  //                       }
+                  //                       return null;
+                  //                     },
+                  //                     inputFormatters: [
+                  //                       FilteringTextInputFormatter.digitsOnly,
+                  //                       CpfInputFormatter(),
+                  //                     ],
+                  //                   ),
+                  //                 ),
+                  //               ),
+                  //             ],
+                  //           ),
+
+                  //           Row(
+                  //             children: [
+                  //               // Documento de identificação:
+                  //               SizedBox(
+                  //                 width: 200,
+                  //                 child: Padding(
+                  //                   padding: const EdgeInsets.only(bottom: 15),
+                  //                   child: TextFormField(
+                  //                     decoration: textFormField("N°"),
+                  //                     keyboardType: TextInputType.text,
+                  //                     controller: numeroControllers[index],
+                  //                     validator: (value) {
+                  //                       if (value == null || value.isEmpty) {
+                  //                         return "Campo obrigatório.";
+                  //                       }
+                  //                       return null;
+                  //                     },
+                  //                     inputFormatters: [
+                  //                       FilteringTextInputFormatter.digitsOnly,
+                  //                       CpfInputFormatter(),
+                  //                     ],
+                  //                   ),
+                  //                 ),
+                  //               ),
+
+                  //               const SizedBox(width: 25),
+                  //               SizedBox(
+                  //                 width: 250,
+                  //                 child: Padding(
+                  //                   padding: const EdgeInsets.only(bottom: 15),
+                  //                   child: TextFormField(
+                  //                     decoration: textFormField("Bairro"),
+                  //                     keyboardType: TextInputType.text,
+                  //                     controller: bairroControllers[index],
+                  //                     validator: (value) {
+                  //                       if (value == null || value.isEmpty) {
+                  //                         return "Campo obrigatório.";
+                  //                       }
+                  //                       return null;
+                  //                     },
+                  //                     inputFormatters: [
+                  //                       FilteringTextInputFormatter.digitsOnly,
+                  //                       CpfInputFormatter(),
+                  //                     ],
+                  //                   ),
+                  //                 ),
+                  //               ),
+                  //               const SizedBox(width: 25),
+                  //               SizedBox(
+                  //                 width: 250,
+                  //                 child: Padding(
+                  //                   padding: const EdgeInsets.only(bottom: 15),
+                  //                   child: TextFormField(
+                  //                     decoration: textFormField("Municipio"),
+                  //                     keyboardType: TextInputType.text,
+                  //                     controller: municipioControllers[index],
+                  //                     validator: (value) {
+                  //                       if (value == null || value.isEmpty) {
+                  //                         return "Campo obrigatório.";
+                  //                       }
+                  //                       return null;
+                  //                     },
+                  //                   ),
+                  //                 ),
+                  //               ),
+                  //               const SizedBox(width: 25),
+                  //               SizedBox(
+                  //                 width: 250,
+                  //                 child: Padding(
+                  //                   padding: const EdgeInsets.only(bottom: 15),
+                  //                   child: TextFormField(
+                  //                     decoration: textFormField("Estado"),
+                  //                     keyboardType: TextInputType.text,
+                  //                     controller: estadoControllers[index],
+                  //                     validator: (value) {
+                  //                       if (value == null || value.isEmpty) {
+                  //                         return "Campo obrigatório.";
+                  //                       }
+                  //                       return null;
+                  //                     },
+                  //                     inputFormatters: [
+                  //                       FilteringTextInputFormatter.digitsOnly,
+                  //                       CpfInputFormatter(),
+                  //                     ],
+                  //                   ),
+                  //                 ),
+                  //               ),
+                  //             ],
+                  //           ),
+                  //         ],
+                  //       ),
+                  //     ),
+                  //   ),
+                  // ),
+
+                  // const SizedBox(height: 5),
+                  // const Divider(thickness: 1, color: Colors.grey),
+                  // const SizedBox(height: 15),
+
+                  // Row(
+                  //   children: [
+                  //     // atividade economica
+                  //     SizedBox(
+                  //       width: 500,
+                  //       child: Padding(
+                  //         padding: const EdgeInsets.only(bottom: 15),
+                  //         child: TextFormField(
+                  //           decoration: textFormField("Atividade Economica"),
+                  //           keyboardType: TextInputType.number,
+                  //           // controller: _cpfController,
+                  //           validator: (value) {
+                  //             if (value == null || value.isEmpty) {
+                  //               return "Campo obrigatório.";
+                  //             }
+                  //             return null;
+                  //           },
+                  //           inputFormatters: [
+                  //             FilteringTextInputFormatter.digitsOnly,
+                  //             CpfInputFormatter(),
+                  //           ],
+                  //         ),
+                  //       ),
+                  //     ),
+                  //     const SizedBox(width: 25),
+                  //     SizedBox(
+                  //       width: 250,
+                  //       child: Padding(
+                  //         padding: const EdgeInsets.only(bottom: 15),
+                  //         child: TextFormField(
+                  //           decoration: textFormField("Município e Estado"),
+                  //           keyboardType: TextInputType.number,
+                  //           // controller: _cpfController,
+                  //           validator: (value) {
+                  //             if (value == null || value.isEmpty) {
+                  //               return "Campo obrigatório.";
+                  //             }
+                  //             return null;
+                  //           },
+                  //           inputFormatters: [
+                  //             FilteringTextInputFormatter.digitsOnly,
+                  //             CpfInputFormatter(),
+                  //           ],
+                  //         ),
+                  //       ),
+                  //     ),
+                  //     const SizedBox(width: 25),
+                  //     SizedBox(
+                  //       width: 200,
+                  //       child: Padding(
+                  //         padding: const EdgeInsets.only(bottom: 15),
+                  //         child: TextFormField(
+                  //           decoration: textFormField("CEP"),
+                  //           keyboardType: TextInputType.number,
+                  //           // controller: _cpfController,
+                  //           validator: (value) {
+                  //             if (value == null || value.isEmpty) {
+                  //               return "Campo obrigatório.";
+                  //             }
+                  //             return null;
+                  //           },
+                  //           inputFormatters: [
+                  //             FilteringTextInputFormatter.digitsOnly,
+                  //             CpfInputFormatter(),
+                  //           ],
+                  //         ),
+                  //       ),
+                  //     ),
+                  //   ],
+                  // ),
                 ],
               ),
             ),
